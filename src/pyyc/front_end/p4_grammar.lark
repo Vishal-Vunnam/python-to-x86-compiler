@@ -1,0 +1,47 @@
+module: statement+
+
+statement: simple_statement
+         | compound_statement
+
+compound_statement: "if" expression ":" suite ("else" ":" suite)? -> if_stmt
+                  | "while" expression ":" suite                   -> while_loop
+
+suite: "\n" INDENT statement+ DEDENT
+
+simple_statement: "print" "(" expression ")"   -> print_call
+                | CNAME "=" expression         -> assign
+                | expression                   -> stmt
+
+?expression: logical_or
+           | "int" "(" "not" expression ")"     -> int_not
+           | "int" "(" expression "==" expression ")" -> int_eq
+           | "int" "(" expression "!=" expression ")" -> int_neq
+           | expression "if" expression "else" expression -> ternary
+
+?logical_or: logical_and
+           | logical_or "or" logical_and      -> logical_or_op
+
+?logical_and: binary
+            | logical_and "and" binary        -> logical_and_op
+
+?binary: unary
+       | binary bop binary                    -> do_binary
+
+?unary: base_expr
+      | uop unary                             -> do_unary
+
+?base_expr: CNAME
+          | NUMBER
+          | "eval" "(" "input" "(" ")" ")"    -> user_input
+          | "(" expression ")"                -> parens
+
+uop: "-"                                     -> usub
+bop: "+"                                     -> add
+
+COMMENT: /#.*/
+%ignore COMMENT
+
+%import common.NUMBER
+%import common.CNAME
+%import common.WS
+%ignore WS
