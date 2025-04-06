@@ -58,15 +58,12 @@ still_sweet = 1
 while still_sweet: 
     still_sweet = desugar(flat_ast)
 flat_ast = flatten(ast_tree)
-print()
-print(ast.unparse(flat_ast))
 ast_tree = uniquify_frees(ast_tree)
 all_frees = find_all_frees(ast_tree)
-print(all_frees)
 ast_tree = heapify(ast_tree, all_frees)
 ast_tree = closure_conversion(ast_tree)
 ast.fix_missing_locations(ast_tree)
-print("\n\n\n",ast.unparse(flatpy_closure(ast_tree)))
+flatpy_closure(ast_tree)
 
 
 

@@ -8,24 +8,11 @@ import pprint
 # import lark
 # from lark import Lark
 from back_end.live_analysis import simple_expr_to_x86_ir, live_analysis, inter_graph, graph_coloring, spill_code, get_homes, ir_to_x86, control_flow, live_cfg, la_flat, new_ir
-from back_end.ctrl_graph import Ctrl_Graph
-from back_end.x86_ir import x86
-from back_end.interference_graph import InterferenceGraph
+
 
 from front_end.flatten import *
 from front_end.parse import * 
 
-
-def unique_valid_PO(tree):
-    class Uniquify(ast.NodeTransformer):
-        def visit_Name(self, node):
-            if (node.id not in ("print", "id", "eval", "input", "int" )):
-                node.id = f"s_{node.id}"
-            return node
-
-    transformer = Uniquify()
-    unique = transformer.visit(tree)
-    return unique
     
 def main_to_x86(count, x86): 
     # vars_dict = stack_vars(main_ast)
@@ -69,14 +56,19 @@ def main():
         ast_tree = ast.parse(source_code) 
         ast_tree = unique_valid_PO(ast_tree)
         ast_tree = cond_nest(ast_tree)
-        desugar(ast_tree)  
-        flat_ast = flatten(ast_tree)       
-        # with open (output_flatpy, 'w') as f:
-        #     f.write(ast.unparse(flat_w_runtimes))
+        desugar(ast_tree)   
+        flat_ast = flatten(ast_tree)
         still_sweet = 1
         while still_sweet: 
             still_sweet = desugar(flat_ast)
-
+        flat_ast = flatten(ast_tree)
+        ast_tree = uniquify_frees(ast_tree)
+        all_frees = find_all_frees(ast_tree)
+        ast_tree = heapify(ast_tree, all_frees)
+        ast_tree = closure_conversion(ast_tree)
+        ast.fix_missing_locations(ast_tree)
+        with open (output_flatpy, 'w') as f:
+            f.write(ast.unparse(flatpy_closure(ast_tree)))
         flat_ast = flat_lists(flat_ast)
         flat_ast = flat_dicts(flat_ast)
         explicated = explicate(flat_ast)
