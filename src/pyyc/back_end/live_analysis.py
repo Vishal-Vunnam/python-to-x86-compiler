@@ -691,7 +691,8 @@ def get_stack_function(instructions):
     stack_offset = 4
     for instr in instructions.body:
         if instr['instr'] == "Function":
-            args = instr['loc1'].split(", ")
+            args = instr['loc1'].split(", ")[::-1]  # Reverse the args
+
             for arg in args:
                 var_to_stack[arg] = f"{stack_offset}(%ebp)"
                 stack_offset += 4
