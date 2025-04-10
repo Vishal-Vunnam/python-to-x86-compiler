@@ -87,8 +87,8 @@ class InterferenceGraph:
     def change_color(self, vertex, color):
         if vertex in self.vertices:
             self.vertices[vertex] = color
-        else:
-            raise KeyError(f"Vertex {vertex} not found in the graph.")
+        # else:
+        #     raise KeyError(f"Vertex {vertex} not found in the graph.")
 
     def add_edge(self, u, v):
         if v == u: 
@@ -148,19 +148,26 @@ def simple_expr_to_x86_ir(tree):
     ir = x86()
     cont_count = 0
     curr_while = []
+    curr_irs = []
+    curr_irs.append(ir)
+    func_irs = []
+    
+    def add_instruction(instr, loc1, loc2):
+        nonlocal curr_irs
+        curr_irs[-1].add_instruction(instr, loc1, loc2)
+        
+        
     def ir_rec(n):
-        nonlocal ir, cont_count
+        nonlocal cont_count, curr_irs, func_irs
         if isinstance(n, Module):
             for child in n.body:
                 ir_rec(child)
-                
                 
         elif isinstance(n, Assign):
             if simple(n.value):
                 target_loc = ir_rec(n.targets[0])
                 value_loc = ir_rec(n.value)
-                ir.add_instruction("movl", value_loc, target_loc)
-                
+                add_instruction("movl", value_loc, target_loc)
                 
             if isinstance(n.value, BinOp):
                 target_loc = ir_rec(n.targets[0])
@@ -168,19 +175,19 @@ def simple_expr_to_x86_ir(tree):
                 right = ir_rec(n.value.right)
                 op = ir_rec(n.value.op)
                 if(target_loc == left):
-                    ir.add_instruction("addl", right, target_loc)
+                    add_instruction("addl", right, target_loc)
                 elif (target_loc == right):
-                    ir.add_instruction("addl", left, target_loc)
+                    add_instruction("addl", left, target_loc)
                 else:
-                    ir.add_instruction("movl", left, target_loc)
-                    ir.add_instruction("addl", right, target_loc)
+                    add_instruction("movl", left, target_loc)
+                    add_instruction("addl", right, target_loc)
                 
             if isinstance(n.value, UnaryOp): 
                 target_loc = ir_rec(n.targets[0])
                 operand = ir_rec(n.value.operand)
                 op = ir_rec(n.value.op)
-                ir.add_instruction("movl", operand, target_loc)
-                ir.add_instruction(op, target_loc, "")
+                add_instruction("movl", operand, target_loc)
+                add_instruction(op, target_loc, "")
                 
             if isinstance(n.value, Compare): 
                 target_loc = ir_rec(n.targets[0])
@@ -189,48 +196,51 @@ def simple_expr_to_x86_ir(tree):
                 if n.value.comparators[0]:
                     comparator = ir_rec(n.value.comparators[0])
                 if isinstance(n.value.ops[0], Eq):
-                    ir.add_instruction("equals", left, comparator )
+                    add_instruction("equals", left, comparator )
                 if isinstance(n.value.ops[0], NotEq):
-                    ir.add_instruction("nequals", left, comparator )
-                ir.add_instruction("movl", "#bool", target_loc)
+                    add_instruction("nequals", left, comparator )
+                add_instruction("movl", "#bool", target_loc)
 
-                
-                
             if isinstance(n.value, Call):
-
                 if n.value.func.id in ("eval", "int"):
                     target_loc = ir_rec(n.targets[0])
                     val_loc = ir_rec(n.value)
-                    ir.add_instruction("movl", val_loc, target_loc)
+                    add_instruction("movl", val_loc, target_loc)
 
-                if n.value.func.id in ("create_list", "create_dict", "equal", "not_equal", "get_subscript", "add", ):
+                elif n.value.func.id in ("create_list", "create_dict", "equal", "not_equal", "get_subscript", "add", "is_true" ):
                     target_loc = ir_rec(n.targets[0])
                     val_loc = ir_rec(n.value)
-                    ir.add_instruction("movl", val_loc, target_loc)
+                    add_instruction("movl", val_loc, target_loc)
                 
-                if n.value.func.id.startswith("inject_"):
+                elif n.value.func.id.startswith("inject_"):
                     target_loc = ir_rec(n.targets[0])
                     val_loc = ir_rec(n.value)
-                    ir.add_instruction("movl", val_loc, target_loc)
-                if n.value.func.id.startswith("project_"):
+                    add_instruction("movl", val_loc, target_loc)
+                elif n.value.func.id.startswith("project_"):
                     target_loc = ir_rec(n.targets[0])
                     val_loc = ir_rec(n.value)
-                    ir.add_instruction("movl", val_loc, target_loc)
+                    add_instruction("movl", val_loc, target_loc)
 
-                    
+                else:
+                    target_loc = ir_rec(n.targets[0])
+                    val_loc = ir_rec(n.value)
+                    add_instruction("movl", val_loc, target_loc)
+
         elif isinstance(n, Expr):
-            ir_rec(n.value)
+            if (isinstance(n.value, Call)):
+                arg_string = ", ".join(ir_rec(arg) for arg in n.value.args)
+                add_instruction("call", arg_string, n.value.func.id)
         elif isinstance(n, Name):
             return f"{n.id}"
         elif isinstance(n, BinOp):
             op = ir_rec(n.op)
             left = ir_rec(n.left)
             right = ir_rec(n.right)
-            ir.add_instruction(op, left, right)
+            add_instruction(op, left, right)
         elif isinstance(n, UnaryOp):
             op = ir_rec(n.op)
             operand = ir_rec(n.operand)
-            ir.add_instruction(op, ir_rec(n.operand), "") 
+            add_instruction(op, ir_rec(n.operand), "") 
             return operand
         elif isinstance(n, Compare): 
             left = ir_rec(n.left)
@@ -238,114 +248,80 @@ def simple_expr_to_x86_ir(tree):
             if n.comparators[0]:
                 comparator = ir_rec(n.comparators[0])
             if isinstance(n.ops[0], Eq):
-                ir.add_instruction("equals", left, comparator ) 
+                add_instruction("equals", left, comparator ) 
             if isinstance(n.ops[0], NotEq):
-                ir.add_instruction("nequals", left, comparator ) 
+                add_instruction("nequals", left, comparator ) 
         elif isinstance(n, Call):
-            #Pre-Validation features prevent any sort of delineation from below structure
-            if n.func.id == "print":
-                ir.add_instruction("call", ir_rec(n.args[0]), "print")
+            arg_string = ", ".join(ir_rec(arg) for arg in n.args if isinstance(arg, (Name, Constant)))
 
-            elif n.func.id == "create_list":
-                ir.add_instruction("call", ir_rec(n.args[0]), "create_list")
-                return "#list"
-            elif n.func.id == "create_dict":
-                ir.add_instruction("call", ir_rec(n.args[0]), "create_dict")
-                return "#dict"
-            elif n.func.id in ("equal", "not_equal"):
-                arg_string = ""
-                for arg in n.args:
-                    arg_string = arg_string + ir_rec(arg) + ", "
-                if arg_string[-2:] == ", ":
-                    arg_string = arg_string[:-2]
-                ir.add_instruction("call", arg_string, n.func.id)
+            if n.func.id == "is_true":
+                add_instruction("call", ir_rec(n.args[0]), "is_true")
                 return "#bool"
+            
+            elif n.func.id in {"create_list", "create_dict"}:
+                add_instruction("call", ir_rec(n.args[0]), n.func.id)
+                return f"#{n.func.id.split('_')[1]}"
+            
+            elif n.func.id in {"equal", "not_equal"}:
+                add_instruction("call", arg_string, n.func.id)
+                return "#bool"
+            
             elif n.func.id == "get_subscript":
-                arg_string = ""
-                for arg in n.args:
-                    arg_string = arg_string + ir_rec(arg) + ", "
-                if arg_string[-2:] == ", ":
-                    arg_string = arg_string[:-2]
-                ir.add_instruction("call", arg_string, "get_subscript")
+                add_instruction("call", arg_string, "get_subscript")
                 return "#subscript"
-
             
-            elif n.func.id == "set_subscript": 
-                arg_string = ""
-                for arg in n.args:
-                    arg_string = arg_string + ir_rec(arg) + ", "
-                if arg_string[-2:] == ", ":
-                    arg_string = arg_string[:-2]
-                ir.add_instruction("call", arg_string, "set_subscript")
-
-            elif n.func.id == "add": 
-                arg_string = ""
-                for arg in n.args:
-                    arg_string = arg_string + ir_rec(arg) + ", "
-                if arg_string[-2:] == ", ":
-                    arg_string = arg_string[:-2]
-                ir.add_instruction("call", arg_string, "add")
+            elif n.func.id == "add":
+                add_instruction("call", arg_string, "add")
                 return "#list"
-
-            elif n.func.id == "dict_subscript":
-                arg_string = ""
-                for arg in n.args:
-                    arg_string = arg_string + ir_rec(arg) + ", "
-                if arg_string[-2:] == ", ":
-                    arg_string = arg_string[:-2]
-                ir.add_instruction("call", arg_string, "dict_subscript")
-
-            # if n.func.id == "int' 
-            #     ir.add_instruction("
-            elif n.func.id == "eval": 
-                ir.add_instruction("call", "eval_input", "")
-                return "#input"
             
-            elif n.func.id == "int": 
-                # print("here")
+            elif n.func.id == "eval":
+                add_instruction("call", "eval_input", "")
+                return "#input"
+                
+            elif n.func.id == "int":
                 ir_rec(n.args[0])
-                # ir.add_instruction("call", "int", "") 
-                return '#int'
+                return "#int"
             
             elif n.func.id.startswith("is_"):
-                ir.add_instruction("call", ir_rec(n.args[0])  , n.func.id)
+                add_instruction("call", ir_rec(n.args[0]), n.func.id)
                 return "#type_chk"
-            
+                
             elif n.func.id.startswith("inject_"):
-                ir.add_instruction("call",  ir_rec(n.args[0])  , n.func.id)
+                add_instruction("call", ir_rec(n.args[0]), n.func.id)
                 return "#val_inj"
+                
             elif n.func.id.startswith("project_"):
-                ir.add_instruction("call",  ir_rec(n.args[0])  , n.func.id)
+                add_instruction("call", ir_rec(n.args[0]), n.func.id)
                 return "#val_proj"
-            else: 
-                print("Error: Unrecognized function call")
+            
+            else:
+                add_instruction("call", arg_string, n.func.id)
+                return f"#ret_{n.func.id}" 
         elif isinstance(n, If): 
             control_count = cont_count
             cont_count += 1
-            ir.add_instruction("cmpl", "$0", ir_rec(n.test))
-            ir.add_instruction("je", f"else{control_count}", "")
+            add_instruction("cmpl", "$0", ir_rec(n.test))
+            add_instruction("je", f"else{control_count}", "")
             
-            ir.add_instruction(f"then{control_count}", "", "") 
+            add_instruction(f"then{control_count}", "", "") 
             for do in n.body: 
                 ir_rec(do)
-            ir.add_instruction(f"jmp", f"endif{control_count}", "")
-            ir.add_instruction(f"else{control_count}", "", "") 
+            add_instruction(f"jmp", f"endif{control_count}", "")
+            add_instruction(f"else{control_count}", "", "") 
             for welp in n.orelse: 
                 ir_rec(welp)
-            ir.add_instruction(f"endif{control_count}", "", "")  
+            add_instruction(f"endif{control_count}", "", "")  
         elif isinstance(n, While):
             control_count = cont_count
             curr_while.append(control_count)
             cont_count += 1
-            ir.add_instruction(f"while{control_count}", "", "")
-            # ir.add_instruction("cmpl", "$0", ir_rec(n.test))  
-            # ir.add_instruction("je", f"end", "")
+            add_instruction(f"while{control_count}", "", "")
             for do in n.body:
                 ir_rec(do)
-            ir.add_instruction("jmp", f"while{control_count}", "")
-            ir.add_instruction(f"endwhile{control_count}", "", "")
+            add_instruction("jmp", f"while{control_count}", "")
+            add_instruction(f"endwhile{control_count}", "", "")
         elif isinstance(n, Break):
-            ir.add_instruction("jmp", f"endwhile{curr_while.pop()}", "")
+            add_instruction("jmp", f"endwhile{curr_while.pop()}", "")
         elif isinstance(n, Constant): 
             return f"${n.value}"
         elif isinstance(n, Add): 
@@ -356,11 +332,39 @@ def simple_expr_to_x86_ir(tree):
             pass
         elif isinstance(n, Store): 
             pass
+        elif isinstance(n, FunctionDef):
+            func_ir = x86()
+            arg_string = ", ".join(arg.arg for arg in n.args.args)
+            func_ir.add_instruction("Function", arg_string, n.name)
+            curr_irs.append(func_ir)
+            for stmt in n.body:
+                ir_rec(stmt)
+            func_irs.append(curr_irs.pop())
+        elif isinstance(n, Return):
+            add_instruction("movl", ir_rec(n.value), "eax")
+            
         else:
-            raise Exception(f"Unhandled node type: {type(n).__name__}")
+            return
     
     ir_rec(tree)
+    for func_ir in func_irs:
+        for instr in func_ir.body:
+            ir.add_instruction(instr['instr'], instr['loc1'], instr['loc2'])
     return ir
+
+
+def ir_split(ir):
+    irs = []
+    curr_ir = x86()
+    for instr in ir.body:
+        if instr['instr'].startswith("Function"):
+            if curr_ir.body:
+                irs.append(curr_ir)
+            curr_ir = x86()
+        curr_ir.add_instruction(instr['instr'], instr['loc1'], instr['loc2'])
+    if curr_ir.body:
+        irs.append(curr_ir)
+    return irs
 
 def control_flow(ir):
     ctrl_graph = Ctrl_Graph()
@@ -389,6 +393,7 @@ def control_flow(ir):
                 elif instr['instr'].startswith("while"):
                     ctrl_graph.add_edge(vertex, vertex-1)
 
+
             
         
     def new_control():
@@ -403,6 +408,9 @@ def control_flow(ir):
             new_control()
             curr_body.body.append(instr)
         elif instr['instr'].startswith(("while", "endwhile")):
+            new_control()
+            curr_body.body.append(instr)
+        elif instr['instr'].startswith("Function"):
             new_control()
             curr_body.body.append(instr)
         else: 
@@ -427,6 +435,7 @@ def live_cfg(cfg):
             else:
                 convergent[cfg.edges[vertex][0]] = current_vars
                 return False
+
     def find_while(endwhile):
         while_ct = endwhile[8:]
         start = 0 
@@ -435,6 +444,7 @@ def live_cfg(cfg):
                 if cfg.vertices[vertex].body[-1]['loc1'] == endwhile:
                     start = vertex
         return start
+
     def do_union(start, end, live_vars):
         for vertex in range(start, end):
             live = live_set[vertex]
@@ -443,6 +453,7 @@ def live_cfg(cfg):
                 new_life = life | live_vars
                 new_live.append(new_life)
             live_set[vertex] = new_live
+
     def do_la_iterative(start_vertex, start_vars):
         stack = [(start_vertex, start_vars)]
         while stack:
@@ -481,6 +492,7 @@ def live_cfg(cfg):
                         stack.append((cfg.edges[vertex][0], new_vars | converge))
                         continue
                     else: continue
+
             else:
                 live_set[vertex] = []
                 new_vars = current_vars
@@ -492,8 +504,14 @@ def live_cfg(cfg):
                 stack.append((cfg.edges[vertex][0], new_vars))
 
         last_var = list(cfg.vertices.keys())[-1]
-    last_var = list(cfg.vertices.keys())[-1]    
-    do_la_iterative(last_var, set())
+
+    # Handle disconnected functions
+    visited = set()
+    for vertex in cfg.vertices.keys():
+        if vertex not in visited:
+            do_la_iterative(vertex, set())
+            visited.update(live_set.keys())
+
     return live_set
                 
 def live_analysis(x86_IR, curr_vars):
@@ -520,12 +538,12 @@ def live_analysis(x86_IR, curr_vars):
                 current_vars.add(ir['loc1'])
         if ir['instr'] == "call":
             if ir['loc1'] not in ("eval_input") and not isconst(ir['loc1']):
-                if ir['loc2'] in ("set_subscript", "dict_subscript", "equal", "get_subscript", "not_equal", "add"):
+                if ',' in ir['loc1']:
                     _args = ir['loc1'].split(", ")
                     for arg in _args:
                         if not isconst(arg):
                             current_vars.add(arg)
-                    
+
                 else:
                     current_vars.add(ir['loc1'])
         if ir['instr'] in ("equals", "cmpl", "nequals"):    
@@ -592,7 +610,7 @@ def inter_graph(x86_IR, live_vars):
             if not isconst(ir['loc1']):
                 for var in live_vars:
                         ig.add_edge(ir['loc1'], var)
-            if ir['loc1'] in ("#int", "#val_proj", "#val_inj", "#type_chk", "#list", "#dict", "#bool", "#input", "#subscript"): 
+            if ir['loc1'][0] == "#": 
                 if not isconst(ir['loc2']):
                     for var in live_vars:
                         ig.add_edge(ir['loc2'], var)
@@ -628,11 +646,23 @@ def inter_graph(x86_IR, live_vars):
         if ir['instr'] == "call": 
             # if ir['loc2'] == 'get_subscript': pdb.set_trace()
             #interference with caller saved registers
+            # print(live_vars)
             for var in live_vars: 
                 ig.add_edge("eax", var)
                 ig.add_edge("ecx", var)
                 ig.add_edge("edx", var)
-                    
+
+            if ir['loc2'].startswith("callptr"):
+                # print("hey", live_vars)
+                ig.add_vertex(ir['loc2'], "blank")
+                for var in live_vars:
+                    ig.add_edge(ir['loc2'], var)
+
+                for var in live_vars: 
+                    ig.add_edge("eax", ir['loc2'])
+                    ig.add_edge("ecx", ir['loc2'])
+                    ig.add_edge("edx",ir['loc2'])
+                
             # Handle multiple function calls in ir['loc1']
             if "," in ir['loc1']:
                 args = ir['loc1'].split(", ")
@@ -644,12 +674,31 @@ def inter_graph(x86_IR, live_vars):
             elif ir['loc1'] not in ("eval_input") and not isconst(ir['loc1']):
                 for var in live_vars:    
                     ig.add_edge(ir['loc1'], var)
+        if ir['instr'] == "Function":
+            if ir['loc1'] != "":
+                args = ir['loc1'].split(", ")
+                for arg in args[1:]:
+                    if not ig.in_vertex(arg):
+                        ig.add_vertex(arg, "blank")
 
     for i, instrs in enumerate(x86_IR.body):
         build_ig(instrs, live_vars[i]) 
 
     return ig
-                        
+
+def get_stack_function(instructions):
+    var_to_stack = {}
+    stack_offset = 4
+    for instr in instructions.body:
+        if instr['instr'] == "Function":
+            args = instr['loc1'].split(", ")
+            for arg in args:
+                var_to_stack[arg] = f"{stack_offset}(%ebp)"
+                stack_offset += 4
+            return var_to_stack
+
+    return var_to_stack
+
 def graph_coloring(i_graph, X86_IR, in_stack):
     register_priority = ['apple', 'carrot', 'donut', 'ice_cream', 'banana', 'salad']
     stack_count = -4 + (-4 * len(in_stack))
@@ -695,6 +744,8 @@ def graph_coloring(i_graph, X86_IR, in_stack):
         if found:
             color_graph(favorite)
 
+
+    # KEEP THIS IN MIND
     for vertex in in_stack:
         i_graph.change_color(vertex, in_stack[vertex])
     for vertex in i_graph.get_spills():
@@ -744,7 +795,7 @@ def spill_code(colored_ig, x86_ir):
             x86_ir.remove_instruction(i)
             update_size(-1)
         if ir['loc1'] in stacked and ir['loc2'] in stacked:
-            print(ir['loc1'], ir['loc2'])
+            # print(ir['loc1'], ir['loc2'])
             check = i-1
             if ir['instr'] == "movl":
                 if ir['loc1'] == ir['loc2']: 
@@ -802,6 +853,8 @@ def get_homes(ir, ig):
         for invalid_string in invalid:
             if string.startswith(invalid_string):
                 return True
+        if string.startswith("Lambda_"):
+            return True
         if string == "" or string[0] == "$" or string[0] == "#" :
             return True
         return False
@@ -819,6 +872,9 @@ def get_homes(ir, ig):
     for instr in ir.body:
         reggie1 = instr['loc1']
         reggie2 = instr['loc2']
+        if instr['instr'] == "Function": 
+            i += 1  # Increment index and skip processing for "Function"
+            continue
         if instr['instr'] == "call" and "," in reggie1:
             args = reggie1.split(", ")
             _reggie1 = ""
@@ -831,6 +887,12 @@ def get_homes(ir, ig):
                         arg = ig.get_color(arg)
                 _reggie1 = _reggie1 + arg+  ", "
             reggie1 = _reggie1[:-2]
+            if reggie2 == "callptr_0":
+                color = ig.get_color(reggie2)
+                if 'ebp' not in color:
+                    reggie2 = reggie_map[ig.get_color(reggie2)]
+                else:
+                    reggie2 = ig.get_color(reggie2)
         elif not ignore(reggie1):
             color = ig.get_color(reggie1)
             if 'ebp' not in color:
@@ -848,16 +910,33 @@ def get_homes(ir, ig):
         ir.replace_instruction(i, instr['instr'], reggie1, reggie2)
         i += 1
 
+def x86_w_funcs(instructions): 
+    code_bodies = []
+    curr_function = []
+    for instr in instructions.body:
+        if instr['instr'] == "Function": 
+            curr_x86 = ir_to_x86(curr_function)
+            code_bodies.append([curr_x86])
+            curr_function = []
+        curr_function.append(instr)
+    if curr_function:
+        curr_x86 = ir_to_x86(curr_function)
+        code_bodies.append([curr_x86])
+    return code_bodies
+
+
 def ir_to_x86(instructions):
     def isconst(string):
         return string[0] == "$"
-
+    registers = {"eax", "ebx", "ecx", "edx", "edi", "esi"}
     def get_op(op):
-        registers = {"eax", "ebx", "ecx", "edx", "edi", "esi"}
+        nonlocal registers
         if op in registers:
             return f"%{op}"
-        if op in ("#input", "#val_proj", "#val_inj", "#type_chk", "#list", "#dict", "#subscript"):
+        if op in ("#input", "#val_proj", "#val_inj", "#type_chk", "#list", "#dict", "#subscript") or op.startswith("#ret"):
             return "%eax"
+        if op.startswith("Lambda"):
+            return f"${op}"
         return op
 
     def do_compare(instr, operator):
@@ -871,24 +950,32 @@ def ir_to_x86(instructions):
         return line
 
     def handle_call(instr):
+        nonlocal registers
         call = instr['loc2']
+        if call in registers or call.endswith("ebp)"):
+            call = get_op(call)
+
         match call:
             case "print": call = "print_any"
             case "eval_input": call = "eval_input_pyobj"
             case "dict_subscript": call = "set_subscript"
             case _: call = call  # Default case to handle other calls
         line = ""
-        for arg in instr['loc1'].split(", "):
+        args = instr['loc1'].split(", ")
+        rev_args = args[::-1]  # Reverse the list using slicing
+        for arg in rev_args:
             if isconst(arg):
                 line += f"    pushl {get_op(arg)}\n"
             else:
                 line += f"    movl {get_op(arg)}, %eax \n"
                 line += f"    pushl %eax \n"
         line += f"    call {call} \n"
-        line += f"    addl ${4 * len(instr['loc1'].split(', '))}, %esp"
+        line += f"    addl ${4 * len(args)}, %esp" 
         return line
 
     x86 = []
+    if instructions.body[0]['instr'] != "Function":
+        x86 = ["main"]
     for instr in instructions.body:
         if instr['instr'] in ("movl", "addl"):
             if instr['loc1'] == "#ValueError":
@@ -921,209 +1008,8 @@ def ir_to_x86(instructions):
             line = handle_call(instr)
         elif instr['instr'] == "call" and instr['loc1'] == "eval_input":
             line = f"    call eval_input_pyobj"
+        elif instr['instr'] == "Function":
+            line = f"{instr['loc2']}"  # Function label
         x86.append(line)
 
     return "\n".join(x86) + "\n"
-# OPTIMIZATION TURNED OFF
-# def lvn(cf_ir):
-
-#     def isconst(string):
-#         if (isinstance(string, int)):
-#             return False
-#         if string[0] == "$":
-#             return True
-#         return False 
-    
-
-#     def find(item, dict):
-#         for key, value in dict.items():
-#             if item == value:
-#                 return key
-#         return None
-    
-
-#     def bin(loc1, loc2, op):
-#         if op == "addl": 
-#             if not isconst(loc1):
-#                 sorted_locs = sorted([loc1, loc2])
-#                 return f"{sorted_locs[0]} + {sorted_locs[1]}"
-#             else:
-#                 return f"{loc1} + {loc2}"
-#         if op == "negl":
-#             return f"-{loc1}"
-#     def compute(instrs):
-
-#         var_match = {}
-#         val_vars = {}
-#         var_count = 0
-#         new_body = x86(); 
-
-#         # Constant Propogation Function
-#         def const_prop(instr):
-#             nonlocal var_match, val_vars, var_count
-#             if instr['instr'] == "addl":
-#                 if instr['loc1'] in val_vars:
-#                     if instr['loc1]'] in val_vars:
-#                         instr['instr'] = "movl"
-#                         instr['loc1'] = f"${int(val_vars[instr['loc1']][1:]) + int(val_vars[instr['loc2']][1:])}"
-#                         val_vars[instr['loc2']] = instr['loc1']
-#                     elif (isconst(instr['loc1']) and isconst(val_vars[instr['loc2']])):
-#                         instr['instr'] = "movl"
-#                         instr['loc1'] = f"${int(instr['loc1'][1:]) + int(val_vars[instr['loc2']][1:])}"
-#                         val_vars[instr['loc2']] = instr['loc1']
-
-#             if instr['instr'] == "movl":
-#                 if instr['loc1'] in val_vars and isconst(val_vars[instr['loc1']]):
-#                     instr['loc1'] = val_vars[instr['loc1']]
-#             print("PLEASE", val_vars)
-#             # if instr['instr'] == "negl":
-#             #     if instr['loc1'] in val_vars:
-#             #         instr['loc1'] = val_vars[instr['loc1']]
-#             return instr
-
-#         for instr in instrs: 
-#             new_instr = instr.copy()
-#             if instr['instr'] == "addl":
-#                 loc1 = instr['loc1']
-#                 if not isconst(instr['loc1']):
-#                     if loc1 in var_match:
-#                         loc1 = var_match[instr['loc1']] 
-#                     else: 
-#                         var_count += 1
-#                         var_match[loc1] = var_count
-#                         loc1 = var_count
-#                 loc2 = instr['loc2']
-#                 if not isconst(instr['loc2']):
-#                     if instr['loc2'] in val_vars: del val_vars[instr['loc2']]
-#                     if loc2 in var_match:
-#                         loc2 = var_match[loc2]
-#                     else: 
-#                         var_count += 1
-#                         var_match[loc2] = var_count
-#                         loc2 = var_count
-#                 string = bin(loc1, loc2, instr['instr'])
-#                 if string in var_match: 
-#                     new_instr['instr'] = "movl"
-#                     new_instr['loc1'] = find(var_match[string], var_match)
-#                     new_instr['loc2'] = instr['loc2']
-#                 else:
-#                     var_count += 1
-#                     var_match[string] =var_count 
-#                     var_match[instr['loc2']] = var_count
-
-#             if instr['instr'] == "negl":
-#                 loc1 = instr['loc1']
-#                 if not isconst(instr['loc1']):
-#                     if instr['loc1'] in val_vars: del val_vars[instr['loc1']]
-#                     if loc1 in var_match:
-#                         loc1 = var_match[loc1]
-#                     else: 
-#                         var_count += 1
-#                         var_match[loc1] = var_count
-#                         loc1
-#                 string = bin(loc1, "", instr['instr'])
-#                 if string in var_match: 
-#                     new_instr['instr'] = "movl"
-#                     new_instr['loc2'] = instr['loc1']
-#                     new_instr['loc1'] = find(var_match[string], var_match)
-#                 else: 
-#                     var_count += 1
-#                     var_match[string] = var_count
-#                     var_match[instr['loc1']] = var_count
-
-#             if instr['instr'] == "movl": 
-#                 loc1 = instr['loc1']
-#                 loc2 = instr['loc2']
-#                 val_vars[loc2] = loc1 
-#                 if loc1 not in var_match:
-#                     var_count += 1
-#                     var_match[loc2] = var_count
-#                 else:
-
-#                     var_match[loc2] = var_match[loc1]  
-#             new_instr = const_prop(new_instr)
-#             new_body.body.append(new_instr)
-#         return new_body
-            
-
-
-
-#     new_cf = Ctrl_Graph()
-#     for vertex in cf_ir.vertices: 
-#         new_cf.add_vertex(vertex, compute(cf_ir.vertices[vertex].body))
-#     for vertex in cf_ir.vertices:
-#         for edge in cf_ir.edges[vertex]:
-#             new_cf.add_edge(vertex, edge)
-#     return new_cf
-# def find_dead(cf_ir):
-#     def is_dead(index, instrs, var):
-#         for instr in instrs[index+1:]:
-#             if instr['loc1'] == var:
-#                 return False
-#             if instr['loc2'] == var:
-#                 if instr['instr'] == "movl":
-#                     return True
-#                 else:
-#                     return False
-#             return False
-#     def compute(instrs):
-#         var_match = {}
-#         var_count = 0
-#         new_body = x86(); 
-
-#         for instr in instrs: 
-#             if instr['instr'] == "movl": 
-#                 if not is_dead(instrs.index(instr), instrs, instr['loc2']):
-#                     if(instr['loc1'] != instr['loc2']):
-#                         new_instr = instr.copy()
-#                         new_body.body.append(new_instr)
-#                     else: continue
-
-#                 else: continue
-#             else:
-#                 new_instr = instr.copy()
-#                 new_body.body.append(new_instr)
-#         # pprint.pprint(instrs)
-#         # pprint.pprint(new_body)
-#         return new_body
-            
-
-
-
-#     new_cf = Ctrl_Graph()
-#     for vertex in cf_ir.vertices: 
-#         new_cf.add_vertex(vertex, compute(cf_ir.vertices[vertex].body))
-#     for vertex in cf_ir.vertices:
-#         for edge in cf_ir.edges[vertex]:
-#             new_cf.add_edge(vertex, edge)
-#     return new_cf
-# def copy_prop(cf_ir): 
-    # def isconst(string):
-    #     if (isinstance(string, int)):
-    #         return False
-    #     if string[0] == "$":
-    #         return True
-    #     return False 
-    # def copy_over(body, replace, var, index):
-    #     for instr in body[index + 1:]:
-    #         if instr['loc2'] == var: 
-    #             return body
-    #         if instr['loc1'] == var:
-    #             instr['loc1'] = var
-            
-
-    # def compute(instrs):
-    #     for instr in instrs: 
-    #         if instr['instr'] == "movl": 
-    #             if not isconst(instr['loc1']) and not isconst(instr['loc2']):
-    #                 copy_over(instrs, instr['loc2'], instr['loc1'], instrs.index(instr))
-
-
-
-    # new_cf = Ctrl_Graph()
-    # for vertex in cf_ir.vertices: 
-    #     new_cf.add_vertex(vertex, compute(cf_ir.vertices[vertex].body))
-    # for vertex in cf_ir.vertices:
-    #     for edge in cf_ir.edges[vertex]:
-    #         new_cf.add_edge(vertex, edge)
-    # return new_cf

@@ -19,10 +19,11 @@ def find_all_frees(tree):
                     self.bound_vars.add(node.arg)
 
                 def visit_Name(self, node): 
-                    if isinstance(node.ctx, ast.Load): 
-                        self.used_vars.add(node.id)
-                    elif isinstance(node.ctx, ast.Store): 
-                        self.bound_vars.add(node.id)
+                    if node.id not in ("print", "id", "eval", "input", "int"):
+                        if isinstance(node.ctx, ast.Load): 
+                            self.used_vars.add(node.id)
+                        elif isinstance(node.ctx, ast.Store): 
+                            self.bound_vars.add(node.id)
                 
                 def get_free_vars(self):
                     return self.used_vars - self.bound_vars  
@@ -86,9 +87,12 @@ def heapify(ast_tree, free_vars):
     heapified = Heapifier(free_vars).visit(ast_tree)
     return pre_heapify(heapified, free_vars)
 
+import ast
+import copy
+
 
 def flatpy_closure(ast_tree):
-        add_funcs_src = """
+    add_funcs_src = """
 def create_closure(func, frees):
     return func, frees
 
@@ -97,20 +101,34 @@ def get_fun_ptr(closure):
 
 def get_free_vars(closure):
     return closure[1]
-    """
-        add_funcs_ast = ast.parse(add_funcs_src)
+        """
+    add_funcs_ast = ast.parse(add_funcs_src)
 
-        ret_ast = copy.deepcopy(ast_tree)
-        ret_ast.body = add_funcs_ast.body + ret_ast.body
-        return ret_ast
+    ret_ast = copy.deepcopy(ast_tree)
 
-def closure_conversion(ast_tree):
+    class IfBodyFixer(ast.NodeTransformer):
+        def visit_If(self, node):
+            self.generic_visit(node)  # Recursively visit nested nodes
+            if not node.body:
+                node.body = [ast.Pass()]
+            if not node.orelse:
+                node.orelse = []  # Optional: ensure orelse is explicitly a list
+            return node
+
+    ret_ast = IfBodyFixer().visit(ret_ast)
+    ast.fix_missing_locations(ret_ast)
+
+    ret_ast.body = add_funcs_ast.body + ret_ast.body
+    return ret_ast
+
+def closure_conversion(ast_tree, global_frees):
 
     class Closure_Conversion(ast.NodeTransformer): 
-        def __init__(self):
+        def __init__(self, global_frees):
             self.function_count = 0 
             self.transformed_funcs = [] 
             self.func_map = {}
+            self.global_frees = global_frees
 
         def get_free_vars(self, func_node):
             class FreeFinder(ast.NodeVisitor):
@@ -135,6 +153,7 @@ def closure_conversion(ast_tree):
                             self.bound_vars.add(node.id)
 
                 def get_free_vars(self):
+                    
                     return self.used_vars - self.bound_vars  
 
             if isinstance(func_node, (ast.FunctionDef, ast.Lambda)): 
@@ -147,15 +166,14 @@ def closure_conversion(ast_tree):
         def closure_prod(self, lambda_name, free_vars, func_name):
             _elts = []
             for free in free_vars: 
-                if free == func_name: 
-                    elt = ast.Subscript(
-                        value=ast.Name(id=free, ctx=ast.Load()),  
-                        slice=ast.Constant(value=0),  
-                        ctx=ast.Load()
-                    )
-                else:
-                    elt = ast.Name(id=free, ctx=ast.Load())
-
+                # if free == func_name or free in self.global_frees: 
+                #     elt = ast.Subscript(
+                #         value=ast.Name(id=free, ctx=ast.Load()),  
+                #         slice=ast.Constant(value=0),  
+                #         ctx=ast.Load()
+                #     )
+                # else:
+                elt = ast.Name(id=free, ctx=ast.Load())
                 _elts.append(elt)
 
             _args = [
@@ -239,7 +257,7 @@ def closure_conversion(ast_tree):
             func_name = self.lambda_prod(node.args.args, node.body, free_vars)
             self.func_map[node.name] = func_name
             closure_call = self.closure_prod(func_name, free_vars, node.name)
-            if node.name in free_vars: 
+            if node.name in free_vars or node.name in self.global_frees: 
                 target = ast.Subscript(
                         value=ast.Name(id=node.name, ctx=ast.Load()),  
                         slice=ast.Constant(value=0),  
@@ -271,13 +289,42 @@ def closure_conversion(ast_tree):
                 new_call = self.func_call_prod(node.func, node.args)
                 return new_call
 
-    transformer = Closure_Conversion()
+    transformer = Closure_Conversion(global_frees)
     transformed_tree = transformer.visit(ast_tree)
 
     if isinstance(transformed_tree, ast.Module):
         transformed_tree.body = transformer.transformed_funcs +  transformed_tree.body
 
     return ast.fix_missing_locations(transformed_tree)
+
+def closure_flattener(ast_tree):
+    class ClosureFlattener(ast.NodeTransformer):
+        def __init__(self):
+            self.tmp_counter = 0
+
+        def new_tmp_name(self):
+            res = f'c_temp_{self.tmp_counter}'
+            self.tmp_counter += 1
+            return res
+        
+
+        def undocall(self, node):
+            self.generic_visit(node)
+            if isinstance(node.value, ast.Call) and isinstance(node.value.func, Name) and node.value.func.id == "create_closure":
+                if isinstance(node.value.args[1], ast.List):
+                    temp_name = self.new_tmp_name()
+                    temp_var = ast.Name(id=temp_name, ctx=ast.Store())
+                    temp_load = ast.Name(id=temp_name, ctx=ast.Load())
+                    assign_temp = ast.Assign(targets=[temp_var], value=node.value.args[1])
+                    node.value.args[1] = temp_load
+                    return [assign_temp, node]
+            return [node]
+        
+        def visit_Assign(self, node): 
+            temped = self.undocall(node)
+            return temped
+
+    return ClosureFlattener().visit(ast_tree)
 
 def uniquify_frees(ast_tree):
     class UniquifyFrees(ast.NodeTransformer):
@@ -433,10 +480,10 @@ def flatten(tree: ast.Module):
                 if not simple(func):
                     n.func = get_simple(func)
                     func = n.func
-                for i, arg in enumerate(args): 
-                    if not simple(arg):
-                        args[i] = get_simple(arg)
-                ast.dump(n, indent = 4)
+                if  not (isinstance(func, Name) and func.id=="eval"):
+                    for i, arg in enumerate(args): 
+                        if not simple(arg):
+                            args[i] = get_simple(arg)
             case If(test=test, body=body, orelse=orelse):
                 n.test = get_simple(test)
                 suite_stack.append([])
@@ -747,19 +794,39 @@ def explicate(flat_ast):
             ast.Assign(targets=[ast.Name(id=assign, ctx=ast.Store())], value=prod_inj(compare_tmp, ret_type))
         ]
 
+        big_int_body = [
+               ast.Assign(targets=[ast.Name(id=assign, ctx=ast.Store())], value=prod_inj(ast.Constant(value = 0), ret_type))
+        ]
+
+        int_big_body = [
+            ast.Assign(targets=[ast.Name(id=assign, ctx=ast.Store())], value=prod_inj(ast.Constant(value = 0), ret_type))
+        ]
+
+        big_bool_body = [
+            left_proj_big,
+            right_proj_bool,
+            ast.Assign(targets=[ast.Name(id=ltemp(), ctx=ast.Store())], value=ast.Call(func=ast.Name(id="is_true", ctx=ast.Load()), args=[r_tmp1], keywords=[])),
+            compare_body,
+            ast.Assign(targets=[ast.Name(id=assign, ctx=ast.Store())], value=inject)
+        ]
+
         value_error = ast.Assign(
             targets=[ast.Name(id=assign, ctx=ast.Store())],
             value=ast.Name(id="#ValueError", ctx=ast.Load())
         )
+        
 
         if_left_big_right_big = construct_if(construct_is_big(r_tmp), big_body, [value_error])
-        if_left_big = construct_if(construct_is_big(l_tmp), [if_left_big_right_big], [value_error])
+        if_left_big_right_int = construct_if(construct_is_int(r_tmp), big_int_body, [if_left_big_right_big])
+        if_left_big = construct_if(construct_is_big(l_tmp), [if_left_big_right_int], [value_error])
         if_left_bool_right_bool = construct_if(construct_is_bool(r_tmp), bool_body, [value_error])
         if_left_bool_right_int = construct_if(construct_is_int(r_tmp), bool_int_body, [if_left_bool_right_bool])
-        if_left_bool = construct_if(construct_is_bool(l_tmp), [if_left_bool_right_int], [if_left_big])
+        if_left_bool_right_big = construct_if(construct_is_big(r_tmp), big_bool_body, [if_left_bool_right_int])
+        if_left_bool = construct_if(construct_is_bool(l_tmp), [if_left_bool_right_big], [if_left_big])
         if_left_int_right_bool = construct_if(construct_is_bool(r_tmp), int_bool_body, [value_error])
         if_left_int_right_int = construct_if(construct_is_int(r_tmp), int_body, [if_left_int_right_bool])
-        if_left_int = construct_if(construct_is_int(l_tmp), [if_left_int_right_int], [if_left_bool])
+        if_left_int_right_big = construct_if(construct_is_big(r_tmp), int_big_body, [if_left_int_right_int])
+        if_left_int = construct_if(construct_is_int(l_tmp), [if_left_int_right_big], [if_left_bool])
         _append(if_left_int)
 
     def if_unbox(value, assign):
@@ -918,95 +985,48 @@ def explicate(flat_ast):
 
         # Append the final conditional
         _append(if_int)
-    def unop_unbox(value, assign, op):
-        val_tmp = ltemp()
-
-        if isinstance(value, ast.Constant):
-            value = inject_const(value)
-
-        _append(ast.Assign(targets=[ast.Name(id=val_tmp, ctx=ast.Store())], value=value))
-
-        store_tmp = ast.Name(id=ltemp(), ctx=ast.Load())
-
-        calc_tmp = ltemp()
-        val_proj_int = ast.Name(id=calc_tmp, ctx=ast.Load())
-        val_proj_bool = ast.Name(id=calc_tmp, ctx=ast.Load())
-        val_proj_big = ast.Name(id=calc_tmp, ctx=ast.Load())
-
-        # projections
-        proj_int = ast.Assign(targets=[store_tmp], value=prod_proj(ast.Name(id=val_tmp, ctx=ast.Load()), "int"))
-        proj_bool = ast.Assign(targets=[store_tmp], value=prod_proj(ast.Name(id=val_tmp, ctx=ast.Load()), "bool"))
-        proj_big = ast.Assign(targets=[store_tmp], value=prod_proj(ast.Name(id=val_tmp, ctx=ast.Load()), "big"))
-
-        do_calc = ast.Assign(targets=[ast.Name(id=calc_tmp, ctx=Load())], value=ast.UnaryOp(op=op, operand=store_tmp))
-
-        # unary operation
-        inj_int = ast.Name(id=calc_tmp, ctx=ast.Load())
-
-        # Injection
-        inject_int = prod_inj(inj_int, "int")
-
-        int_body = [
-            proj_int,
-            do_calc,
-            ast.Assign(targets=[ast.Name(id=assign, ctx=ast.Store())], value=inject_int)
-        ]
-        bool_body = [
-            proj_bool,
-            do_calc,
-            ast.Assign(targets=[ast.Name(id=assign, ctx=ast.Store())], value=inject_int)
-        ]
-
-        value_error = ast.Assign(
-            targets=[ast.Name(id=assign, ctx=ast.Store())],
-            value=ast.Name(id="#ValueError", ctx=ast.Load())
-        )
-        if_bool = construct_if(construct_is_bool(ast.Name(id=val_tmp, ctx=ast.Load())), bool_body, [value_error])
-        if_int = construct_if(construct_is_int(ast.Name(id=val_tmp, ctx=ast.Load())), int_body, [if_bool])
-
-        # Append the final conditional
-        _append(if_int)
-    
+  
     def call_unbox(n):   
         if isinstance(n.value, ast.Call):
-            if n.value.func.id in ('create_list', 'create_dict'):
-                if isinstance(n.value.args[0], ast.Constant):
-                    tmp = ltemp()
-                    arg_type = type(n.value.args[0].value).__name__
-                    ass_to = prod_inj(n.value.args[0], arg_type)
-                    _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
-                    n.value.args[0] = ast.Name(id=tmp, ctx=ast.Load())
-                store_tmp = ltemp()
+            if isinstance(n.value.func, ast.Name):
+                if n.value.func.id in ('create_list', 'create_dict'):
+                    if isinstance(n.value.args[0], ast.Constant):
+                        tmp = ltemp()
+                        arg_type = type(n.value.args[0].value).__name__
+                        ass_to = prod_inj(n.value.args[0], arg_type)
+                        _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
+                        n.value.args[0] = ast.Name(id=tmp, ctx=ast.Load())
+                    store_tmp = ltemp()
 
-                _append(ast.Assign(targets=[ast.Name(id=store_tmp, ctx=ast.Store())], value=n.value))
-                injected_call = prod_inj(ast.Name(id = store_tmp, ctx = Load()), "big")
-                _append(ast.Assign(targets = n.targets, value = injected_call))
-                n.value = ast.Name(id=store_tmp, ctx=ast.Load())
-            elif n.value.func.id == "get_subscript":
-                if isinstance(n.value.args[0], ast.Constant):
-                    tmp = ltemp()
-                    arg_type = type(n.value.args[0].value).__name__
-                    ass_to = prod_inj(n.value.args[0], arg_type)
-                    _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
-                    n.value.args[0] = ast.Name(id=tmp, ctx=ast.Load())
-                elif isinstance(n.value.args[1], ast.Constant):
-                    tmp = ltemp()
-                    arg_type = type(n.value.args[1].value).__name__
-                    ass_to = prod_inj(n.value.args[1], arg_type)
-                    _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
-                    n.value.args[1] = ast.Name(id=tmp, ctx=ast.Load())
-                _append(n)
-            elif n.value.func.id == "int":
-                if isinstance(n.value.args[0], Compare):
-                    tmp = ltemp()
-                    compare_unbox(n.value.args[0].left, n.value.args[0].comparators[0], n.targets[0].id, n.value.args[0].ops[0], 'int')
-                    n.value.args[0] = ast.Name(id=tmp, ctx=ast.Load())
-                elif isinstance(n.value.args[0], UnaryOp):
-                    not_unbox(n.value.args[0].operand, n.targets[0].id, 'int')
+                    _append(ast.Assign(targets=[ast.Name(id=store_tmp, ctx=ast.Store())], value=n.value))
+                    injected_call = prod_inj(ast.Name(id = store_tmp, ctx = Load()), "big")
+                    _append(ast.Assign(targets = n.targets, value = injected_call))
+                    n.value = ast.Name(id=store_tmp, ctx=ast.Load())
+                elif n.value.func.id == "get_subscript":
+                    if isinstance(n.value.args[0], ast.Constant):
+                        tmp = ltemp()
+                        arg_type = type(n.value.args[0].value).__name__
+                        ass_to = prod_inj(n.value.args[0], arg_type)
+                        _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
+                        n.value.args[0] = ast.Name(id=tmp, ctx=ast.Load())
+                    elif isinstance(n.value.args[1], ast.Constant):
+                        tmp = ltemp()
+                        arg_type = type(n.value.args[1].value).__name__
+                        ass_to = prod_inj(n.value.args[1], arg_type)
+                        _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
+                        n.value.args[1] = ast.Name(id=tmp, ctx=ast.Load())
+                    _append(n)
+                elif n.value.func.id == "int":
+                    if isinstance(n.value.args[0], Compare):
+                        tmp = ltemp()
+                        compare_unbox(n.value.args[0].left, n.value.args[0].comparators[0], n.targets[0].id, n.value.args[0].ops[0], 'int')
+                        n.value.args[0] = ast.Name(id=tmp, ctx=ast.Load())
+                    elif isinstance(n.value.args[0], UnaryOp):
+                        not_unbox(n.value.args[0].operand, n.targets[0].id, 'int')
 
-                
-            else:
-                _append(n)
+                    
+                else:
+                    _append(n)
     
     def not_unbox(operand, assign, ret_type):
         operand_tmp = ltemp()
@@ -1116,7 +1136,6 @@ def explicate(flat_ast):
         # Append the final conditional
         _append(if_int)
 
-
     def rec(n): 
         if isinstance(n, ast.Assign):
             if isinstance(n.value, ast.Call):
@@ -1143,7 +1162,7 @@ def explicate(flat_ast):
                 if isinstance(n.value.value, bool):
                     n.value.value = int(n.value.value)
                     n.value = prod_inj(n.value, "bool")
-                    print(ast.unparse(n.value))
+                    # print(ast.unparse(n.value))
                     _append(n)
                 elif isinstance(n.value.value, int):
                     n.value = prod_inj(n.value, "int")
@@ -1179,7 +1198,7 @@ def explicate(flat_ast):
             n.orelse = suite_stack.pop()
             _append(n)
         elif isinstance(n, ast.Expr):
-            if isinstance(n.value, ast.Call):
+            if isinstance(n.value, ast.Call) and isinstance(n.value.func, ast.Name):
                 if n.value.func.id == 'print':
                     if isinstance(n.value.args[0], ast.Constant):
                         arg_type = type(n.value.args[0].value).__name__
@@ -1207,7 +1226,7 @@ def explicate(flat_ast):
                     
                     # Reorder arguments for dict_subscript
                     if n.value.func.id == 'dict_subscript':
-                        n.value.args = [n.value.args[1], n.value.args[0], n.value.args[2]]
+                        n.value.args = [n.value.args[2], n.value.args[0], n.value.args[1]]
                     
             _append(n)
         else: 
@@ -1284,111 +1303,170 @@ def cond_nest(tree):
 def desugar(tree):
     class RidBinary(ast.NodeTransformer):
         def __init__(self):
-            self.tmp_counter = 0  # For temporary variable names
-            self.bool_op_count = 0  # Count of Boolean operations found
+            self.tmp_counter = 0
+            self.bool_op_count = 0
 
         def new_temp(self):
-            new_temp = f"sweet{self.tmp_counter}"
+            temp_name = f"sweet{self.tmp_counter}"
             self.tmp_counter += 1
-            return new_temp
+            return temp_name
 
         def visit_Assign(self, node):
-            # if isinstance(node.value, ast.Call):
-            #     if node.value.func.id == 'int':
-            #         if isinstance(node.value.args[0], ast.UnaryOp):
-            #             if isinstance(node.value.args[0].op, ast.Not):
-            #                 new = ast.Compare(
-            #                     left=ast.Constant(value=0),
-            #                     ops=[ast.Eq()],
-            #                     comparators=[node.value.args[0].operand]
-            #                 )
-            #                 new_func = ast.Call(
-            #                     func=ast.Name(id='int', ctx=ast.Load()),
-            #                     args=[new],
-            #                     keywords=[]
-            #                 )
-            #                 return ast.Assign(
-            #                     targets=node.targets,
-            #                     value=new_func
-            #                 )
-            if isinstance(node.value, ast.BoolOp):
-                # Increment the counter each time we see a BoolOp
-                self.bool_op_count += 1
+            return self._handle_expr_stmt(node, is_return=False)
 
-                salt = node.value
-                temp = salt.values[0]
-                temped = False
+        def visit_Return(self, node):
+            return self._handle_expr_stmt(node, is_return=True)
 
-                if not isinstance(temp, (ast.Constant, ast.Name)):
-                    temp_name = self.new_temp()
-                    temp = ast.Name(id=temp_name, ctx=ast.Load())
-                    assign = ast.Assign(
-                        targets=[ast.Name(id=temp_name, ctx=ast.Store())],
-                        value=salt.values[0]
-                    )
-                    temped = True
-                
+        def _handle_expr_stmt(self, node, is_return):
+            expr = node.value
+            if not isinstance(expr, (ast.BoolOp, ast.IfExp)):
+                return node  # No desugaring needed
 
-                if isinstance(salt.op, ast.Or):
-                    new_sugar = ast.If(
-                        test=temp,
-                        body=[ast.Assign(targets=node.targets, value=temp)],
-                        orelse=[ast.Assign(targets=node.targets, value=salt.values[1])]
-                    )
-                elif isinstance(salt.op, ast.And):
-                    new_sugar = ast.If(
-                        test=temp,
-                        body=[ast.Assign(targets=node.targets, value=salt.values[1])],
-                        orelse=[ast.Assign(targets=node.targets, value=temp)]
-                    )
-                
-                if temped:
-                    return [assign, new_sugar]
+            self.bool_op_count += 1
+            temp_name = self.new_temp()
+            temp_var = ast.Name(id=temp_name, ctx=ast.Load())
+            store_temp = ast.Name(id=temp_name, ctx=ast.Store())
 
-                return new_sugar
-            elif isinstance(node.value, ast.IfExp):
-                self.bool_op_count += 1
+            # Determine the condition expression
+            if isinstance(expr, ast.BoolOp):
+                test_expr = expr.values[0]
+                alt_expr = expr.values[1]
+                if isinstance(expr.op, ast.Or):
+                    body_val = test_expr
+                    else_val = alt_expr
+                else:  # And
+                    body_val = alt_expr
+                    else_val = test_expr
+            elif isinstance(expr, ast.IfExp):
+                test_expr = expr.test
+                body_val = expr.body
+                else_val = expr.orelse
 
-                salt = node.value
-                temped = False
-                new_sugar = ast.If(
-                        test=salt.test,
-                        body=[ast.Assign(targets=node.targets, value=salt.body)],
-                        orelse=[ast.Assign(targets=node.targets, value=salt.orelse)]
-                )
+            stmts = []
 
-                if temped:
-                    return [assign, new_sugar]
+            # If the test is complex, evaluate it once and assign to a temp
+            if not isinstance(test_expr, (ast.Name, ast.Constant)):
+                test_temp = self.new_temp()
+                test_var = ast.Name(id=test_temp, ctx=ast.Load())
+                test_store = ast.Name(id=test_temp, ctx=ast.Store())
+                stmts.append(ast.Assign(targets=[test_store], value=test_expr))
+                test_expr = test_var  # Replace test with the temp variable
 
-                return new_sugar
-            
-            # elif isinstance(node.value, ast.Not):             
-            #     self.bool_op_count += 1
+            # Construct the if statement assigning to the temp result
+            if_stmt = ast.If(
+                test=test_expr,
+                body=[ast.Assign(targets=[store_temp], value=body_val)],
+                orelse=[ast.Assign(targets=[store_temp], value=else_val)]
+            )
+            stmts.append(if_stmt)
 
-            #     salt = node.value
+            # Add final return or assign
+            if is_return:
+                stmts.append(ast.Return(value=temp_var))
+            else:
+                stmts.append(ast.Assign(targets=node.targets, value=temp_var))
 
-            #     if isinstance(salt.operand, ast.List):
-            #         return ast.Compare(
-            #             left=ast.List(elts=[], ctx=ast.Load()),
-            #             ops=[ast.Eq()],
-            #             comparators=[salt.operand]
-            #         )
-            #     elif isinstance(salt.operand, ast.Dict):
-            #         return ast.Compare(
-            #             left=ast.Dict(keys=[], values=[]),
-            #             ops=[ast.Eq()],
-            #             comparators=[salt.operand]
-            #         )
-            #     new = ast.Compare(
-            #         left=ast.Constant(value=0),
-            #         ops=[ast.Eq()],
-            #         comparators=[salt.operand]
-            #     )
-            return node
-        
-
+            return stmts
 
     transformer = RidBinary()
     desugared = transformer.visit(tree)
     ast.fix_missing_locations(desugared)
     return transformer.bool_op_count
+
+def flat_calls(tree):
+
+    class FlatCalls(ast.NodeTransformer):
+        def __init__(self):
+            self.tmp_counter = 0
+
+        def new_tmp_name(self, prefix):
+            res = f'{prefix}_{self.tmp_counter}'
+            self.tmp_counter += 1
+            return res
+
+        def visit_Expr(self, node):
+            if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Call):
+                if isinstance(node.value.func.func, ast.Name) and node.value.func.func.id == 'get_fun_ptr':
+                    temp_fun_ptr = self.new_tmp_name("callptr")
+                    temp_free_vars = self.new_tmp_name("callfree")
+
+                    # Assign temp for get_fun_ptr
+                    assign_fun_ptr = ast.Assign(
+                        targets=[ast.Name(id=temp_fun_ptr, ctx=ast.Store())],
+                        value=node.value.func
+                    )
+
+                    # Assign temp for get_free_vars
+                    assign_free_vars = ast.Assign(
+                        targets=[ast.Name(id=temp_free_vars, ctx=ast.Store())],
+                        value=node.value.args[0]
+                    )
+
+                    # Replace the original call with the un-nested version
+                    new_call = ast.Call(
+                        func=ast.Name(id=temp_fun_ptr, ctx=ast.Load()),
+                        args=[
+                            ast.Name(id=temp_free_vars, ctx=ast.Load()),
+                            *node.value.args[1:]
+                        ],
+                        keywords=[]
+                    )
+
+                    return [assign_fun_ptr, assign_free_vars, ast.Expr(value=new_call)]
+
+            return self.generic_visit(node)
+
+        def visit_Assign(self, node):
+            if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Call):
+                if isinstance(node.value.func.func, ast.Name) and node.value.func.func.id == 'get_fun_ptr':
+                    temp_fun_ptr = self.new_tmp_name("callptr")
+                    temp_free_vars = self.new_tmp_name("callfree")
+
+                    # Assign temp for get_fun_ptr
+                    assign_fun_ptr = ast.Assign(
+                        targets=[ast.Name(id=temp_fun_ptr, ctx=ast.Store())],
+                        value=node.value.func
+                    )
+
+                    # Assign temp for get_free_vars
+                    assign_free_vars = ast.Assign(
+                        targets=[ast.Name(id=temp_free_vars, ctx=ast.Store())],
+                        value=node.value.args[0]
+                    )
+
+                    # Replace the original call with the un-nested version
+                    new_call = ast.Call(
+                        func=ast.Name(id=temp_fun_ptr, ctx=ast.Load()),
+                        args=[
+                            ast.Name(id=temp_free_vars, ctx=ast.Load()),
+                            *node.value.args[1:]
+                        ],
+                        keywords=[]
+                    )
+
+                    return [assign_fun_ptr, assign_free_vars, ast.Assign(targets=node.targets, value=new_call)]
+
+            return self.generic_visit(node)
+
+    transformer = FlatCalls()
+    flat_tree = transformer.visit(tree)
+    ast.fix_missing_locations(flat_tree)
+    return flat_tree
+def func_flattener(tree):
+    class FlattenFunctionReturns(ast.NodeTransformer):
+        def visit_FunctionDef(self, node):
+            self.generic_visit(node)
+            new_body = []
+            for stmt in node.body:
+                if isinstance(stmt, ast.Return):
+                    flattened_return = flatten(ast.Module(body=[stmt], type_ignores=[]))
+                    new_body.extend(flattened_return.body)
+                else:
+                    new_body.append(stmt)
+            node.body = new_body
+            return node
+
+    transformer = FlattenFunctionReturns()
+    flattened_tree = transformer.visit(tree)
+    ast.fix_missing_locations(flattened_tree)
+    return flattened_tree
