@@ -561,7 +561,7 @@ def flat_lists(flat_tree):
                 create_list_node = Call(func=Name(id='create_list', ctx=Load()), args=[Constant(value=list_size)], keywords=[])
                 new_nodes = [Assign(targets=node.targets, value=create_list_node)]
                 for i, elt in enumerate(node.value.elts):
-                    set_call = Call(func=Name(id='set_subscript', ctx=Load()), args=[elt, Constant(value=i), node.targets[0]], keywords=[])
+                    set_call = Call(func=Name(id='set_subscript', ctx=Load()), args=[node.targets[0], Constant(value=i), elt], keywords=[])
                     new_nodes.append(Expr(value=set_call))
                 return new_nodes
 
