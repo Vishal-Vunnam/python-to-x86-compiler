@@ -670,7 +670,7 @@ def explicate(flat_ast):
 
 
         inj_body = ast.BinOp(left=l_tmp1, op=op, right=r_tmp1)
-        big_inj_body = ast.Call(func=ast.Name(id = 'add', ctx=ast.Load()), args=[r_tmp1, l_tmp1], keywords=[])
+        big_inj_body = ast.Call(func=ast.Name(id = 'add', ctx=ast.Load()), args=[l_tmp1, r_tmp1], keywords=[])
         big_inject = prod_inj(val_tmp, "big")
         inject = prod_inj(val_tmp, "int")
 
