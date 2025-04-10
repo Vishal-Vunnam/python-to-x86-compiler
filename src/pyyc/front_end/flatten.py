@@ -1163,7 +1163,7 @@ def explicate(flat_ast):
             elif isinstance(n.value, ast.Subscript):
                 n.value = ast.Call(
                     func=Name(id='get_subscript', ctx=Load()),
-                    args=[n.value.slice, n.value.value],
+                    args=[n.value.value, n.value.slice],
                     keywords=[]
                 )
                 call_unbox(n)
