@@ -1003,18 +1003,13 @@ def explicate(flat_ast):
                     _append(ast.Assign(targets = n.targets, value = injected_call))
                     n.value = ast.Name(id=store_tmp, ctx=ast.Load())
                 elif n.value.func.id == "get_subscript":
-                    if isinstance(n.value.args[0], ast.Constant):
-                        tmp = ltemp()
-                        arg_type = type(n.value.args[0].value).__name__
-                        ass_to = prod_inj(n.value.args[0], arg_type)
-                        _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
-                        n.value.args[0] = ast.Name(id=tmp, ctx=ast.Load())
-                    elif isinstance(n.value.args[1], ast.Constant):
-                        tmp = ltemp()
-                        arg_type = type(n.value.args[1].value).__name__
-                        ass_to = prod_inj(n.value.args[1], arg_type)
-                        _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
-                        n.value.args[1] = ast.Name(id=tmp, ctx=ast.Load())
+                    for i, arg in enumerate(n.value.args):
+                        if isinstance(arg, ast.Constant):
+                            tmp = ltemp()
+                            arg_type = type(arg.value).__name__
+                            ass_to = prod_inj(arg, arg_type)
+                            _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
+                            n.value.args[i] = ast.Name(id=tmp, ctx=ast.Load())
                     _append(n)
                 elif n.value.func.id == "int":
                     if isinstance(n.value.args[0], Compare):
@@ -1023,15 +1018,34 @@ def explicate(flat_ast):
                         n.value.args[0] = ast.Name(id=tmp, ctx=ast.Load())
                     elif isinstance(n.value.args[0], UnaryOp):
                         not_unbox(n.value.args[0].operand, n.targets[0].id, 'int')
+                    elif isinstance(n.value.args[0], ast.Constant):
+                        tmp = ltemp()
+                        arg_type = type(n.value.args[0].value).__name__
+                        ass_to = prod_inj(n.value.args[0], arg_type)
+                        _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
+                        n.value.args[0] = ast.Name(id=tmp, ctx=ast.Load())
 
                 elif n.value.func.id == "create_closure":
+                    for i, arg in enumerate(n.value.args):
+                        if isinstance(arg, ast.Constant):
+                            tmp = ltemp()
+                            arg_type = type(arg.value).__name__
+                            ass_to = prod_inj(arg, arg_type)
+                            _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
+                            n.value.args[i] = ast.Name(id=tmp, ctx=ast.Load())
                     store_tmp = ltemp()
                     _append(ast.Assign(targets=[ast.Name(id=store_tmp, ctx=ast.Store())], value=n.value))
                     injected_call = prod_inj(ast.Name(id=store_tmp, ctx=ast.Load()), "big")
                     _append(ast.Assign(targets=n.targets, value=injected_call))
 
-                    
                 else:
+                    for i, arg in enumerate(n.value.args):
+                        if isinstance(arg, ast.Constant):
+                            tmp = ltemp()
+                            arg_type = type(arg.value).__name__
+                            ass_to = prod_inj(arg, arg_type)
+                            _append(ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())], value=ass_to))
+                            n.value.args[i] = ast.Name(id=tmp, ctx=ast.Load())
                     _append(n)
     
     def not_unbox(operand, assign, ret_type):
@@ -1191,6 +1205,14 @@ def explicate(flat_ast):
                 rec(doelse)
             n.orelse = suite_stack.pop()
             _append(n)
+
+        elif isinstance(n, FunctionDef):
+            func_body = []
+            suite_stack.append(func_body)
+            for do in n.body:
+                rec(do)
+            n.body = suite_stack.pop()
+            _append(n)
         elif isinstance(n, While):
             while_body = []
             suite_stack.append(while_body)
@@ -1235,6 +1257,7 @@ def explicate(flat_ast):
                         n.value.args = [n.value.args[2], n.value.args[0], n.value.args[1]]
                     
             _append(n)
+
         else: 
             _append(n)
  
