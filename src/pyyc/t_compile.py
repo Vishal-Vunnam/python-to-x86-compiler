@@ -80,6 +80,7 @@ flat_ast = flat_lists(flat_ast)
 flat_ast = flat_dicts(flat_ast)
 explicated = explicate(flat_ast)
 desugar(explicated)
+print(ast.unparse(explicated), "\n\n\n")
 # print(ast.dump(explicated, indent = 4))
 
 # # pyobj set_subscript(pyobj c, pyobj key, pyobj val);

@@ -1024,6 +1024,12 @@ def explicate(flat_ast):
                     elif isinstance(n.value.args[0], UnaryOp):
                         not_unbox(n.value.args[0].operand, n.targets[0].id, 'int')
 
+                elif n.value.func.id == "create_closure":
+                    store_tmp = ltemp()
+                    _append(ast.Assign(targets=[ast.Name(id=store_tmp, ctx=ast.Store())], value=n.value))
+                    injected_call = prod_inj(ast.Name(id=store_tmp, ctx=ast.Load()), "big")
+                    _append(ast.Assign(targets=n.targets, value=injected_call))
+
                     
                 else:
                     _append(n)

@@ -83,7 +83,7 @@ def main():
         explicated = explicate(flat_ast)
         ast.fix_missing_locations(explicated)
         flat_w_runtimes = runtime(explicated)
-
+        ir = simple_expr_to_x86_ir(explicated) 
         ir_bodies = ir_split(ir)
         x86_bodies = []
         final_x86 = "" 
