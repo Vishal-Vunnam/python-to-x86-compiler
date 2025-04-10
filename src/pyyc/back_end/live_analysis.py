@@ -688,11 +688,11 @@ def inter_graph(x86_IR, live_vars):
 
 def get_stack_function(instructions):
     var_to_stack = {}
-    stack_offset = 4
+    stack_offset = 8
     for instr in instructions.body:
         if instr['instr'] == "Function":
-            args = instr['loc1'].split(", ")[::-1]  # Reverse the args
-
+            args = instr['loc1'].split(", ")
+            
             for arg in args:
                 var_to_stack[arg] = f"{stack_offset}(%ebp)"
                 stack_offset += 4
@@ -700,9 +700,9 @@ def get_stack_function(instructions):
 
     return var_to_stack
 
-def graph_coloring(i_graph, X86_IR, in_stack):
+def graph_coloring(i_graph, X86_IR, in_stack, nonlocal_stack):
     register_priority = ['apple', 'carrot', 'donut', 'ice_cream', 'banana', 'salad']
-    stack_count = -4 + (-4 * len(in_stack))
+    stack_count = -4 + (-4 * len(in_stack)) - (4*nonlocal_stack)
     def get_stack():
         nonlocal stack_count
         open_stack = f'{stack_count}(%ebp)'
