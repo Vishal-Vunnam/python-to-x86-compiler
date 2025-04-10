@@ -100,7 +100,7 @@ def main():
                 n_ir = new_ir(cf)
                 keep_running = False
                 graph = inter_graph(n_ir, flat_la)
-                in_stack = graph_coloring(graph, n_ir, in_stack)
+                in_stack = graph_coloring(graph, n_ir, in_stack, nonlocal_stack)
                 keep_running = spill_code(graph, n_ir)
         
             get_homes(n_ir, graph)

@@ -460,7 +460,7 @@ def flatten(tree: ast.Module):
                     val = rec_with_tmp(val)
                 value = get_simple(value)
                 slice_node = get_simple(slice_node)
-                call_node = Call(func=Name(id='set_subscript', ctx=Load()), args=[value, slice_node, val], keywords=[])
+                call_node = Call(func=Name(id='set_subscript', ctx=Load()), args=[val, slice_node, value], keywords=[])
                 _append(Expr(value=call_node))
             case Assign(value=value):
                 n.value = rec(value)
