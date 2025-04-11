@@ -707,6 +707,8 @@ def graph_coloring(i_graph, X86_IR, in_stack, nonlocal_stack):
         return _constraints
 
     def color(vertex, shant_eat):
+        if i_graph.get_color(vertex).endswith("ebp)"):
+            return
         for yummy in register_priority:
             if yummy not in shant_eat:
                 i_graph.change_color(vertex, yummy)
@@ -737,13 +739,17 @@ def graph_coloring(i_graph, X86_IR, in_stack, nonlocal_stack):
 
     # KEEP THIS IN MIND
     for vertex in in_stack:
+        # pdb.set_trace()
         i_graph.change_color(vertex, in_stack[vertex])
+    print(i_graph)
     for vertex in i_graph.get_spills():
         color_graph(vertex)
 
     color_graph(i_graph.highest_order())
     while i_graph.get_first_blank() is not None:
         color_graph(i_graph.get_first_blank())
+
+    print(i_graph)
 
     return in_stack
        

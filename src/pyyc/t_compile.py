@@ -48,16 +48,12 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-def fun(x):
-    if x == True:
-        return True
-    else:
-        return False
+def while_in_fun(x, y):
+    while(x != y):
+        x = x + 1
+    return x
 
-x = 10 if fun(eval(input())) else 20
-print(x)
-
-
+print(while_in_fun(eval(input()), eval(input())))
 
 """
 ast_tree = ast.parse(source_code)
@@ -71,7 +67,7 @@ while still_sweet:
     still_sweet = desugar(flat_ast)
 
 print(ast.unparse(flat_ast), "\n\n\n")
-# print(ast.unparse(flat_ast), "\n\n\n")
+print(ast.unparse(flat_ast), "\n\n\n")
 ast_tree = uniquify_frees(ast_tree)
 all_frees = find_all_frees(ast_tree)
 ast_tree = heapify(ast_tree, all_frees)
@@ -107,6 +103,7 @@ for ir in ir_bodies:
     cf = control_flow(ir)
     keep_running = True
     in_stack = get_stack_function(ir)
+    print(in_stack)
     nonlocal_stack = len(in_stack)
     n_ir = ir
     # print(ir)
@@ -124,12 +121,13 @@ for ir in ir_bodies:
     
     # print(graph)
     # print(n_ir)
+    # print(graph)
     get_homes(n_ir, graph)
     # print(n_ir, "\n\n")
     x86_bodies.append(ir_to_x86(n_ir))
     final_x86 += main_to_x86(4*len(in_stack)- (4*nonlocal_stack), ir_to_x86(n_ir)) + "\n\n"
 
-print(final_x86)
+# print(final_x86)
 
 
 
