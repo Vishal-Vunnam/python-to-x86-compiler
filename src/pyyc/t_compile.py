@@ -48,8 +48,8 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-x = lambda: 42
-print(x())
+while 1:
+    print(1)
 """
 ast_tree = ast.parse(source_code)
 ast_tree = unique_valid_PO(ast_tree)
@@ -95,11 +95,11 @@ x86_bodies = []
 final_x86 = "" 
 for ir in ir_bodies:
     cf = control_flow(ir)
-    print(cf)
     keep_running = True
     in_stack = get_stack_function(ir)
     nonlocal_stack = len(in_stack)
     n_ir = ir
+    print(ir)
     while keep_running:
         cf = control_flow(n_ir)
         la = live_cfg(cf)

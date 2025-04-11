@@ -434,7 +434,6 @@ def live_cfg(cfg):
             else:
                 convergent[cfg.edges[vertex][0]] = current_vars
                 return False
-
     def find_while(endwhile):
         while_ct = endwhile[8:]
         start = 0 
@@ -443,7 +442,6 @@ def live_cfg(cfg):
                 if cfg.vertices[vertex].body[-1]['loc1'] == endwhile:
                     start = vertex
         return start
-
     def do_union(start, end, live_vars):
         for vertex in range(start, end):
             live = live_set[vertex]
@@ -452,7 +450,6 @@ def live_cfg(cfg):
                 new_life = life | live_vars
                 new_live.append(new_life)
             live_set[vertex] = new_live
-
     def do_la_iterative(start_vertex, start_vars):
         stack = [(start_vertex, start_vars)]
         while stack:
@@ -491,7 +488,6 @@ def live_cfg(cfg):
                         stack.append((cfg.edges[vertex][0], new_vars | converge))
                         continue
                     else: continue
-
             else:
                 live_set[vertex] = []
                 new_vars = current_vars
@@ -503,14 +499,8 @@ def live_cfg(cfg):
                 stack.append((cfg.edges[vertex][0], new_vars))
 
         last_var = list(cfg.vertices.keys())[-1]
-
-    # Handle disconnected functions
-    visited = set()
-    for vertex in cfg.vertices.keys():
-        if vertex not in visited:
-            do_la_iterative(vertex, set())
-            visited.update(live_set.keys())
-
+    last_var = list(cfg.vertices.keys())[-1]    
+    do_la_iterative(last_var, set())
     return live_set
                 
 def live_analysis(x86_IR, curr_vars):
