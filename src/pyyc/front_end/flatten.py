@@ -480,10 +480,12 @@ def flatten(tree: ast.Module):
                 if not simple(func):
                     n.func = get_simple(func)
                     func = n.func
-                if  not (isinstance(func, Name) and func.id=="eval"):
+                if  not (isinstance(func, Name) and func.id in ("eval", "int")):
                     for i, arg in enumerate(args): 
                         if not simple(arg):
                             args[i] = get_simple(arg)
+                if func.id in {'eval', 'int'}:
+                    args[0] = rec(args[0])
             case If(test=test, body=body, orelse=orelse):
                 n.test = get_simple(test)
                 suite_stack.append([])

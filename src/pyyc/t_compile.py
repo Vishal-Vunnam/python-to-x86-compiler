@@ -48,8 +48,8 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-while 1:
-    print(1)
+print(int(1 == 3))
+
 """
 ast_tree = ast.parse(source_code)
 ast_tree = unique_valid_PO(ast_tree)
@@ -61,6 +61,7 @@ still_sweet = 1
 while still_sweet: 
     still_sweet = desugar(flat_ast)
 
+print(ast.unparse(flat_ast), "\n\n\n")
 # print(ast.unparse(flat_ast), "\n\n\n")
 ast_tree = uniquify_frees(ast_tree)
 all_frees = find_all_frees(ast_tree)
@@ -99,7 +100,7 @@ for ir in ir_bodies:
     in_stack = get_stack_function(ir)
     nonlocal_stack = len(in_stack)
     n_ir = ir
-    print(ir)
+    # print(ir)
     while keep_running:
         cf = control_flow(n_ir)
         la = live_cfg(cf)
@@ -107,13 +108,13 @@ for ir in ir_bodies:
         n_ir = new_ir(cf)
         keep_running = False
         graph = inter_graph(n_ir, flat_la)
-        print(graph)
-        print("hey", in_stack)
+        # print(graph)
+        # print("hey", in_stack)
         in_stack = graph_coloring(graph, n_ir, in_stack, nonlocal_stack)
         keep_running = spill_code(graph, n_ir)
     
-    print(graph)
-    print(n_ir)
+    # print(graph)
+    # print(n_ir)
     get_homes(n_ir, graph)
     # print(n_ir, "\n\n")
     x86_bodies.append(ir_to_x86(n_ir))
