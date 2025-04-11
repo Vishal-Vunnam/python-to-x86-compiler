@@ -839,7 +839,7 @@ def spill_code(colored_ig, x86_ir):
 
 def get_homes(ir, ig): 
     def ignore(string):
-        print(string)
+        # print(string)
         invalid = ["print", "eval_input", "else", "endif", "while", "endwhile", "project", "inject", "is", "create"]
         for invalid_string in invalid:
             if string.startswith(invalid_string):

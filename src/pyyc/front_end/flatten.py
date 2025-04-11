@@ -833,39 +833,19 @@ def explicate(flat_ast):
             ast.Assign(targets=[ast.Name(id=assign, ctx=ast.Store())], value=prod_inj(compare_tmp, ret_type))
         ]
 
-        big_int_body = [
-               ast.Assign(targets=[ast.Name(id=assign, ctx=ast.Store())], value=prod_inj(ast.Constant(value = 0), ret_type))
-        ]
-
-        int_big_body = [
-            ast.Assign(targets=[ast.Name(id=assign, ctx=ast.Store())], value=prod_inj(ast.Constant(value = 0), ret_type))
-        ]
-
-        big_bool_body = [
-            left_proj_big,
-            right_proj_bool,
-            ast.Assign(targets=[ast.Name(id=ltemp(), ctx=ast.Store())], value=ast.Call(func=ast.Name(id="is_true", ctx=ast.Load()), args=[r_tmp1], keywords=[])),
-            compare_body,
-            ast.Assign(targets=[ast.Name(id=assign, ctx=ast.Store())], value=inject)
-        ]
-
         value_error = ast.Assign(
             targets=[ast.Name(id=assign, ctx=ast.Store())],
             value=ast.Name(id="#ValueError", ctx=ast.Load())
         )
-        
 
         if_left_big_right_big = construct_if(construct_is_big(r_tmp), big_body, [value_error])
-        if_left_big_right_int = construct_if(construct_is_int(r_tmp), big_int_body, [if_left_big_right_big])
-        if_left_big = construct_if(construct_is_big(l_tmp), [if_left_big_right_int], [value_error])
+        if_left_big = construct_if(construct_is_big(l_tmp), [if_left_big_right_big], [value_error])
         if_left_bool_right_bool = construct_if(construct_is_bool(r_tmp), bool_body, [value_error])
         if_left_bool_right_int = construct_if(construct_is_int(r_tmp), bool_int_body, [if_left_bool_right_bool])
-        if_left_bool_right_big = construct_if(construct_is_big(r_tmp), big_bool_body, [if_left_bool_right_int])
-        if_left_bool = construct_if(construct_is_bool(l_tmp), [if_left_bool_right_big], [if_left_big])
+        if_left_bool = construct_if(construct_is_bool(l_tmp), [if_left_bool_right_int], [if_left_big])
         if_left_int_right_bool = construct_if(construct_is_bool(r_tmp), int_bool_body, [value_error])
         if_left_int_right_int = construct_if(construct_is_int(r_tmp), int_body, [if_left_int_right_bool])
-        if_left_int_right_big = construct_if(construct_is_big(r_tmp), int_big_body, [if_left_int_right_int])
-        if_left_int = construct_if(construct_is_int(l_tmp), [if_left_int_right_big], [if_left_bool])
+        if_left_int = construct_if(construct_is_int(l_tmp), [if_left_int_right_int], [if_left_bool])
         _append(if_left_int)
 
     def if_unbox(value, assign):
