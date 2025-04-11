@@ -352,7 +352,6 @@ def simple_expr_to_x86_ir(tree):
             ir.add_instruction(instr['instr'], instr['loc1'], instr['loc2'])
     return ir
 
-
 def ir_split(ir):
     irs = []
     curr_ir = x86()
@@ -677,7 +676,7 @@ def inter_graph(x86_IR, live_vars):
         if ir['instr'] == "Function":
             if ir['loc1'] != "":
                 args = ir['loc1'].split(", ")
-                for arg in args[1:]:
+                for arg in args:
                     if not ig.in_vertex(arg):
                         ig.add_vertex(arg, "blank")
 
@@ -850,6 +849,7 @@ def spill_code(colored_ig, x86_ir):
 
 def get_homes(ir, ig): 
     def ignore(string):
+        print(string)
         invalid = ["print", "eval_input", "else", "endif", "while", "endwhile", "project", "inject", "is", "create"]
         for invalid_string in invalid:
             if string.startswith(invalid_string):

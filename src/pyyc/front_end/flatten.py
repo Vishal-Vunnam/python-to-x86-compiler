@@ -137,7 +137,7 @@ def closure_conversion(ast_tree, global_frees):
                     self.bound_vars = set()
                 
                 def ignore(self, string):
-                    if string in ["print", "id", "eval", "input", "int", "create_closure", "get_fun_ptr", "get_free_vars"] or string.startswith("Lambda_"):
+                    if string in ["print", "id", "eval", "input", "int", "create_closure", "get_fun_ptr", "get_free_vars", "set_subscript"] or string.startswith("Lambda_"):
                         return True
                     return False
                     
@@ -283,7 +283,7 @@ def closure_conversion(ast_tree, global_frees):
 
         def visit_Call(self, node): 
             self.generic_visit(node)
-            if isinstance(node.func, Name) and node.func.id in ["print", "id", "eval", "input", "int"]: 
+            if isinstance(node.func, Name) and node.func.id in ["print", "id", "eval", "input", "int", "set_subscript"]: 
                 return node
             else: 
                 new_call = self.func_call_prod(node.func, node.args)
@@ -596,7 +596,44 @@ def flat_dicts(flat_tree):
     flat_dict = transformer.visit(flat_tree)
     ast.fix_missing_locations(flat_dict)
     return flat_dict
-      
+
+def subscript_remover(flat_tree):
+    class SubscriptRemover(ast.NodeTransformer):
+        def __init__(self):
+            self.tmp_counter = 0
+
+        def new_tmp_name(self):
+            res = f'subtmp_{self.tmp_counter}'
+            self.tmp_counter += 1
+            return res
+
+        def visit_Assign(self, node):
+            if isinstance(node.targets[0], ast.Subscript):
+                temp_name = self.new_tmp_name()
+                temp_var = ast.Name(id=temp_name, ctx=ast.Store())
+                temp_load = ast.Name(id=temp_name, ctx=ast.Load())
+
+                # Create a temporary variable to store the value
+                assign_temp = ast.Assign(targets=[temp_var], value=node.value)
+
+                # Replace the original subscript with a set_subscript call
+                set_subscript_call = ast.Expr(
+                    value=ast.Call(
+                    func=ast.Name(id='set_subscript', ctx=ast.Load()),
+                    args=[node.targets[0].value, node.targets[0].slice, temp_load],
+                    keywords=[]
+                    )
+                )
+
+                return [assign_temp, set_subscript_call]
+
+            return node
+        
+    transformer = SubscriptRemover()
+    flat_tree = transformer.visit(flat_tree)
+    ast.fix_missing_locations(flat_tree)
+    return flat_tree
+
 def explicate(flat_ast):
     tmp_count =0 
     def ltemp():
@@ -1156,6 +1193,29 @@ def explicate(flat_ast):
         # Append the final conditional
         _append(if_int)
 
+    def check_subscript(n):
+        if isinstance(n, ast.Subscript):
+            if isinstance(n.value, ast.Constant):
+                tmp_value = ltemp()
+                value_type = type(n.value.value).__name__
+                injected_value = prod_inj(n.value, value_type)
+                _append(ast.Assign(targets=[ast.Name(id=tmp_value, ctx=ast.Store())], value=injected_value))
+                n.value = ast.Name(id=tmp_value, ctx=ast.Load())
+
+            if isinstance(n.slice, ast.Constant):
+                tmp_slice = ltemp()
+                slice_type = type(n.slice.value).__name__
+                injected_slice = prod_inj(n.slice, slice_type)
+                _append(ast.Assign(targets=[ast.Name(id=tmp_slice, ctx=ast.Store())], value=injected_slice))
+                n.slice = ast.Name(id=tmp_slice, ctx=ast.Load())
+
+            return ast.Call(
+                func=Name(id='get_subscript', ctx=Load()),
+                args=[n.value, n.slice],
+                keywords=[]
+            )
+        else:
+            return n
     def rec(n): 
         if isinstance(n, ast.Assign):
             if isinstance(n.value, ast.Call):
@@ -1170,6 +1230,8 @@ def explicate(flat_ast):
             elif isinstance(n.value, Name):
                 _append(n)
             elif isinstance(n.value, ast.BinOp):
+                n.value.left = check_subscript(n.value.left)
+                n.value.right = check_subscript(n.value.right)
                 bin_op_unbox(n.value.left, n.value.right, n.targets[0].id, n.value.op)
             elif isinstance(n.value, ast.Compare):
                 compare_unbox(n.value.left, n.value.comparators[0], n.targets[0].id, n.value.ops[0], 'bool')

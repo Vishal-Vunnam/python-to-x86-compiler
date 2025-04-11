@@ -80,6 +80,7 @@ def main():
         ast.fix_missing_locations(ast_tree)
         flat_ast = flat_lists(flat_ast)
         flat_ast = flat_dicts(flat_ast)
+        flat_ast = subscript_remover(flat_ast)
         explicated = explicate(flat_ast)
         ast.fix_missing_locations(explicated)
         flat_w_runtimes = runtime(explicated)

@@ -44,9 +44,10 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-def f(x): 
-    return x + 1
-print(f(1))
+a = 2
+b = 3
+def sum():
+    return a + b
 
 """
 ast_tree = ast.parse(source_code)
@@ -76,8 +77,10 @@ still_sweet = 1
 while still_sweet: 
     still_sweet = desugar(flat_ast)
 
+
 flat_ast = flat_lists(flat_ast)
 flat_ast = flat_dicts(flat_ast)
+flat_ast = subscript_remover(flat_ast)
 explicated = explicate(flat_ast)
 desugar(explicated)
 print(ast.unparse(explicated), "\n\n\n")
@@ -91,6 +94,7 @@ x86_bodies = []
 final_x86 = "" 
 for ir in ir_bodies:
     cf = control_flow(ir)
+    print(cf)
     keep_running = True
     in_stack = get_stack_function(ir)
     nonlocal_stack = len(in_stack)
@@ -102,6 +106,8 @@ for ir in ir_bodies:
         n_ir = new_ir(cf)
         keep_running = False
         graph = inter_graph(n_ir, flat_la)
+        print(graph)
+        print("hey", in_stack)
         in_stack = graph_coloring(graph, n_ir, in_stack, nonlocal_stack)
         keep_running = spill_code(graph, n_ir)
   
