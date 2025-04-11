@@ -17,7 +17,11 @@ from front_end.parse import *
 def main_to_x86(count, x86): 
     func_name = x86.split("\n")[0]
     x86 = x86.split("\n", 1)[1]
-    asm_main = (
+    add_text = ""
+    if func_name == "main":
+        add_text = ".section .text\n"
+    asm_main = add_text + (
+        f".type {func_name}, @function\n"
         f".globl {func_name}\n"
         f"{func_name}:\n"
         "    pushl %ebp\n"
@@ -41,6 +45,7 @@ def main_to_x86(count, x86):
         "    ret\n"
     )
     return asm_main
+
 
 
 def main():
