@@ -48,11 +48,8 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-a = 2
-b = 3
-def sum():
-    return a + b
-
+x = lambda: 42
+print(x())
 """
 ast_tree = ast.parse(source_code)
 ast_tree = unique_valid_PO(ast_tree)
@@ -114,7 +111,9 @@ for ir in ir_bodies:
         print("hey", in_stack)
         in_stack = graph_coloring(graph, n_ir, in_stack, nonlocal_stack)
         keep_running = spill_code(graph, n_ir)
-  
+    
+    print(graph)
+    print(n_ir)
     get_homes(n_ir, graph)
     # print(n_ir, "\n\n")
     x86_bodies.append(ir_to_x86(n_ir))

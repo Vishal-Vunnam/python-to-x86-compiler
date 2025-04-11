@@ -876,19 +876,27 @@ def get_homes(ir, ig):
         if instr['instr'] == "Function": 
             i += 1  # Increment index and skip processing for "Function"
             continue
-        if instr['instr'] == "call" and "," in reggie1:
-            args = reggie1.split(", ")
-            _reggie1 = ""
-            for arg in args:
-                if not ignore(arg):
-                    color = ig.get_color(arg)
+        if instr['instr'] == "call":
+            if "," in reggie1:
+                args = reggie1.split(", ")
+                _reggie1 = ""
+                for arg in args:
+                    if not ignore(arg):
+                        color = ig.get_color(arg)
+                        if 'ebp' not in color:
+                            arg = reggie_map[ig.get_color(arg)]
+                        else:
+                            arg = ig.get_color(arg)
+                    _reggie1 = _reggie1 + arg+  ", "
+                reggie1 = _reggie1[:-2]
+            elif reggie1: 
+                if not ignore(reggie1):
+                    color = ig.get_color(reggie1)
                     if 'ebp' not in color:
-                        arg = reggie_map[ig.get_color(arg)]
+                        reggie1 = reggie_map[ig.get_color(reggie1)]
                     else:
-                        arg = ig.get_color(arg)
-                _reggie1 = _reggie1 + arg+  ", "
-            reggie1 = _reggie1[:-2]
-            if reggie2 == "callptr_0":
+                        reggie1 = ig.get_color(reggie1)
+            if reggie2.startswith("callptr"):
                 color = ig.get_color(reggie2)
                 if 'ebp' not in color:
                     reggie2 = reggie_map[ig.get_color(reggie2)]
