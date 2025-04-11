@@ -48,7 +48,10 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-print(int(1 == 3))
+x = 0
+while int(not x):
+    x = eval(input())
+    
 
 """
 ast_tree = ast.parse(source_code)

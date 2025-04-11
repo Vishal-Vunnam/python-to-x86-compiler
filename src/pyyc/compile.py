@@ -74,21 +74,24 @@ def main():
         still_sweet = 1
         while still_sweet: 
             still_sweet = desugar(flat_ast)
-        flat_ast = flatten(ast_tree)
         ast_tree = uniquify_frees(ast_tree)
         all_frees = find_all_frees(ast_tree)
         ast_tree = heapify(ast_tree, all_frees)
         ast_tree = closure_conversion(ast_tree, all_frees)
         ast_tree = closure_flattener(ast_tree)
+        ast.fix_missing_locations(ast_tree)
         ast_tree = flat_calls(ast_tree)
         ast_tree = func_flattener(ast_tree)
-        ast.fix_missing_locations(ast_tree)
+        still_sweet = 1
+        while still_sweet: 
+            still_sweet = desugar(flat_ast)
         flat_ast = flat_lists(flat_ast)
         flat_ast = flat_dicts(flat_ast)
         flat_ast = subscript_remover(flat_ast)
         explicated = explicate(flat_ast)
-        ast.fix_missing_locations(explicated)
-        flat_w_runtimes = runtime(explicated)
+        desugar(explicated)
+        # ast.fix_missing_locations(explicated)
+        # flat_w_runtimes = runtime(explicated)
         ir = simple_expr_to_x86_ir(explicated) 
         ir_bodies = ir_split(ir)
         x86_bodies = []
