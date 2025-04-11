@@ -17,7 +17,7 @@ PYYC=$(THIS_DIR)/pyyc
 
 # Compile and link for 32-bit architecture
 CC=gcc
-CFLAGS=-m32 -g -lm
+CFLAGS=-m32 -g -lm -no-pie
 
 # Tests Root
 PYYCTESTS_ROOT=$(THIS_DIR)/tests
