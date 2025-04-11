@@ -1305,7 +1305,7 @@ def explicate(flat_ast):
             if isinstance(n.value, ast.Constant):
                 temp_name = ltemp()
                 arg_type = type(n.value.value).__name__
-                injected_value = prod_inj(n.value, arg_type)
+                injected_value = inject_const(n.value)
                 _append(ast.Assign(targets=[ast.Name(id=temp_name, ctx=ast.Store())], value=injected_value))
                 _append(ast.Return(value=ast.Name(id=temp_name, ctx=ast.Load())))
             else:
