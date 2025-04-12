@@ -571,8 +571,9 @@ def new_ir(cfg):
         for instr in cfg.vertices[vertex].body:
             new_ir.add_instruction(instr['instr'], instr['loc1'], instr['loc2'])
     return new_ir
-           
+    
 def inter_graph(x86_IR, live_vars):
+    runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
     ig = InterferenceGraph()
     #Array for current alive variables (dyamic for appending)
     shared_vars = []
@@ -582,7 +583,7 @@ def inter_graph(x86_IR, live_vars):
     def normalize(edge):
         return tuple(sorted(edge))
     def build_ig(ir, live_vars): 
-        nonlocal shared_vars
+        nonlocal shared_vars, runtimes
         # print("\n", ir)
         # print(live_vars, "\n")
         
@@ -641,7 +642,7 @@ def inter_graph(x86_IR, live_vars):
                 ig.add_edge("ecx", var)
                 ig.add_edge("edx", var)
 
-            if ir['loc2'].startswith("callptr"):
+            if ir['loc2'] not in runtimes:
                 # print("hey", live_vars)
                 ig.add_vertex(ir['loc2'], "blank")
                 for var in live_vars:
@@ -844,7 +845,10 @@ def get_homes(ir, ig):
     def ignore(string):
         print(string)
         # print(string)
-        invalid = ["print", "eval_input", "else", "endif", "while", "endwhile", "project", "inject", "is", "create", "set_subscript", "add", "get_subscript", "equal", "not_equal", "is_true", "Lambda", "get_subscript", "create_list", "create_dict", "dict_subscript", "eval_input_pyobj", "get_fun_ptr", "get_free_vars"]
+        invalid = ["else", "endif", "while", "endwhile"]
+        runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
+        if string in runtimes:
+            return True
         for invalid_string in invalid:
             if string.startswith(invalid_string):
                 return True
