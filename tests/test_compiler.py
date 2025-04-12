@@ -30,7 +30,7 @@ cc = ['gcc', '-m32', '-g','-lm']
 default_pyyctests = [os.path.join(this_dir, 'resources')]
 default_outof = 100
 
-print_compile_log = False
+print_compile_log = True
 
 popen_timeout = 60
 

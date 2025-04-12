@@ -78,6 +78,7 @@ def main():
         ast_tree = func_flattener(ast_tree)
         ast_tree = cond_nest(ast_tree)
         desugar(ast_tree)   
+        desugar(ast_tree)   
         flat_ast = flatten(ast_tree)
         
         still_sweet = 1

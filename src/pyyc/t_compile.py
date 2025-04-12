@@ -48,20 +48,10 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-def add2sub1(a):
-    return sub1(add2(a))
+def fib(n):
+    return 0 if n == 0 else 1 if n == 1 else fib(n + -1) + fib(n + -2)
 
-def add2(a):
-    return a + 2
-
-def sub1(a):
-    return a + -1
-
-x = 5
-while(add2sub1(x) != 10):
-    x = add2(x)
-
-print(x)
+print(fib(6))
 
 
 """
@@ -83,7 +73,8 @@ ast_tree = func_flattener(ast_tree)
 
 # At point of heapifying call find_all_frees to get all free vars     
 ast_tree = cond_nest(ast_tree)
-desugar(ast_tree)   
+desugar(ast_tree) 
+desugar(ast_tree)  
 print(ast.unparse(ast_tree), "\n\n\n")
 flat_ast = flatten(ast_tree)
 still_sweet = 1
