@@ -48,11 +48,10 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-def fib(n):
-    return 0 if n == 0 else 1 if n == 1 else fib(n + -1) + fib(n + -2)
+def prod(a, b):
+    return 0 if b == 0 else a + prod(a, b + -1)
 
-print(fib(6))
-
+print(prod(4, 3))
 
 """
 ast_tree = ast.parse(source_code)
@@ -67,7 +66,6 @@ ast_tree = heapify(ast_tree, all_frees)
 ast_tree = closure_conversion(ast_tree, all_frees)
 ast_tree = closure_flattener(ast_tree)
 ast.fix_missing_locations(ast_tree)
-print(ast.unparse(flatpy_closure(ast_tree)))
 ast_tree = flat_calls(ast_tree)
 ast_tree = func_flattener(ast_tree)
 
@@ -91,6 +89,7 @@ flat_ast = flat_dicts(flat_ast)
 flat_ast = subscript_remover(flat_ast)
 explicated = explicate(flat_ast)
 desugar(explicated)
+print(ast.unparse(explicated), "\n\n\n")
 # print(ast.unparse(explicated), "\n\n\n")
 # # print(ast.dump(explicated, indent = 4))
 
@@ -122,15 +121,13 @@ for ir in ir_bodies:
         in_stack = graph_coloring(graph, n_ir, in_stack, nonlocal_stack)
         keep_running = spill_code(graph, n_ir)
     
-    # print(graph)
-    # print(n_ir)
-    # print(graph)
+    print(graph)
     get_homes(n_ir, graph)
     # print(n_ir, "\n\n")
     x86_bodies.append(ir_to_x86(n_ir))
     final_x86 += main_to_x86(4*len(in_stack)- (4*nonlocal_stack), ir_to_x86(n_ir)) + "\n\n"
 
-print(final_x86)
+# print(final_x86)
 
 
 

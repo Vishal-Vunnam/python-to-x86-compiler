@@ -504,13 +504,13 @@ def live_cfg(cfg):
     return live_set
                 
 def live_analysis(x86_IR, curr_vars):
-    
+    runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
     def isconst(string):
         return string[0] == "$" or string[0] == "#" 
     live_var = []
     current_vars = curr_vars.copy()
     def build(ir):
-        nonlocal current_vars
+        nonlocal current_vars, runtimes
         if ir['instr'] == "movl":
             loc2 = ir['loc2']
             if loc2 in current_vars:
@@ -535,6 +535,9 @@ def live_analysis(x86_IR, curr_vars):
 
                 else:
                     current_vars.add(ir['loc1'])
+            if ir['loc2'] not in runtimes:
+                if ir['loc2'] not in ("eval_input") and not isconst(ir['loc2']):
+                    current_vars.add(ir['loc2'])
         if ir['instr'] in ("equals", "cmpl", "nequals"):    
             if not isconst(ir['loc1']): current_vars.add(ir["loc1"])
             if not isconst(ir['loc2']): current_vars.add(ir["loc2"])
@@ -843,7 +846,6 @@ def spill_code(colored_ig, x86_ir):
 
 def get_homes(ir, ig): 
     def ignore(string):
-        print(string)
         # print(string)
         invalid = ["else", "endif", "while", "endwhile"]
         runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
