@@ -84,6 +84,9 @@ def main():
         still_sweet = 1
         while still_sweet: 
             still_sweet = desugar(flat_ast)
+        still_sweet = 1
+        while still_sweet: 
+            still_sweet = desugar(flat_ast)
         flat_ast = flat_lists(flat_ast)
         flat_ast = flat_dicts(flat_ast)
         flat_ast = subscript_remover(flat_ast)
