@@ -741,15 +741,12 @@ def graph_coloring(i_graph, X86_IR, in_stack, nonlocal_stack):
     for vertex in in_stack:
         # pdb.set_trace()
         i_graph.change_color(vertex, in_stack[vertex])
-    print(i_graph)
     for vertex in i_graph.get_spills():
         color_graph(vertex)
 
     color_graph(i_graph.highest_order())
     while i_graph.get_first_blank() is not None:
         color_graph(i_graph.get_first_blank())
-
-    print(i_graph)
 
     return in_stack
        
@@ -845,8 +842,9 @@ def spill_code(colored_ig, x86_ir):
 
 def get_homes(ir, ig): 
     def ignore(string):
+        print(string)
         # print(string)
-        invalid = ["print", "eval_input", "else", "endif", "while", "endwhile", "project", "inject", "is", "create"]
+        invalid = ["print", "eval_input", "else", "endif", "while", "endwhile", "project", "inject", "is", "create", "set_subscript", "add", "get_subscript", "equal", "not_equal", "is_true", "Lambda", "get_subscript", "create_list", "create_dict", "dict_subscript", "eval_input_pyobj", "get_fun_ptr", "get_free_vars"]
         for invalid_string in invalid:
             if string.startswith(invalid_string):
                 return True
@@ -892,7 +890,7 @@ def get_homes(ir, ig):
                         reggie1 = reggie_map[ig.get_color(reggie1)]
                     else:
                         reggie1 = ig.get_color(reggie1)
-            if reggie2.startswith("callptr"):
+            if not ignore(reggie2):
                 color = ig.get_color(reggie2)
                 if 'ebp' not in color:
                     reggie2 = reggie_map[ig.get_color(reggie2)]

@@ -48,37 +48,47 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-def while_in_fun(x, y):
-    while(x != y):
-        x = x + 1
-    return x
+def add2sub1(a):
+    return sub1(add2(a))
 
-print(while_in_fun(eval(input()), eval(input())))
+def add2(a):
+    return a + 2
+
+def sub1(a):
+    return a + -1
+
+x = 5
+while(add2sub1(x) != 10):
+    x = add2(x)
+
+print(x)
+
 
 """
 ast_tree = ast.parse(source_code)
 ast_tree = unique_valid_PO(ast_tree)
-ast_tree = cond_nest(ast_tree)
-desugar(ast_tree)   
-# print(ast.unparse(ast_tree), "\n\n\n")
-flat_ast = flatten(ast_tree)
-still_sweet = 1
-while still_sweet: 
-    still_sweet = desugar(flat_ast)
 
-print(ast.unparse(flat_ast), "\n\n\n")
-print(ast.unparse(flat_ast), "\n\n\n")
+# print(ast.unparse(flat_ast), "\n\n\n")
+# print(ast.unparse(flat_ast), "\n\n\n")
 ast_tree = uniquify_frees(ast_tree)
 all_frees = find_all_frees(ast_tree)
+print(all_frees)
 ast_tree = heapify(ast_tree, all_frees)
 ast_tree = closure_conversion(ast_tree, all_frees)
 ast_tree = closure_flattener(ast_tree)
 ast.fix_missing_locations(ast_tree)
-# print(ast.unparse(flatpy_closure(ast_tree)))
+print(ast.unparse(flatpy_closure(ast_tree)))
 ast_tree = flat_calls(ast_tree)
 ast_tree = func_flattener(ast_tree)
 
 # At point of heapifying call find_all_frees to get all free vars     
+ast_tree = cond_nest(ast_tree)
+desugar(ast_tree)   
+print(ast.unparse(ast_tree), "\n\n\n")
+flat_ast = flatten(ast_tree)
+still_sweet = 1
+while still_sweet: 
+    still_sweet = desugar(flat_ast)
 
 still_sweet = 1
 while still_sweet: 
@@ -90,11 +100,12 @@ flat_ast = flat_dicts(flat_ast)
 flat_ast = subscript_remover(flat_ast)
 explicated = explicate(flat_ast)
 desugar(explicated)
-print(ast.unparse(explicated), "\n\n\n")
-# print(ast.dump(explicated, indent = 4))
+# print(ast.unparse(explicated), "\n\n\n")
+# # print(ast.dump(explicated, indent = 4))
 
 # # pyobj set_subscript(pyobj c, pyobj key, pyobj val);
-# flat_w_runtimes = runtime(explicated)
+flat_w_runtimes = runtime(explicated)
+# print(ast.unparse(flat_w_runtimes), "\n\n\n")
 ir = simple_expr_to_x86_ir(explicated) 
 ir_bodies = ir_split(ir)
 x86_bodies = []
@@ -103,7 +114,7 @@ for ir in ir_bodies:
     cf = control_flow(ir)
     keep_running = True
     in_stack = get_stack_function(ir)
-    print(in_stack)
+    # print(in_stack)
     nonlocal_stack = len(in_stack)
     n_ir = ir
     # print(ir)
@@ -115,7 +126,8 @@ for ir in ir_bodies:
         keep_running = False
         graph = inter_graph(n_ir, flat_la)
         # print(graph)
-        # print("hey", in_stack)
+        # print(n_ir)
+        # # print("hey", in_stack)
         in_stack = graph_coloring(graph, n_ir, in_stack, nonlocal_stack)
         keep_running = spill_code(graph, n_ir)
     
@@ -127,7 +139,7 @@ for ir in ir_bodies:
     x86_bodies.append(ir_to_x86(n_ir))
     final_x86 += main_to_x86(4*len(in_stack)- (4*nonlocal_stack), ir_to_x86(n_ir)) + "\n\n"
 
-# print(final_x86)
+print(final_x86)
 
 
 

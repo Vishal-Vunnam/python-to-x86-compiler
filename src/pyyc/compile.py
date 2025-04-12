@@ -67,13 +67,7 @@ def main():
         
         ast_tree = ast.parse(source_code) 
         ast_tree = unique_valid_PO(ast_tree)
-        ast_tree = cond_nest(ast_tree)
-        desugar(ast_tree)   
-        flat_ast = flatten(ast_tree)
-        
-        still_sweet = 1
-        while still_sweet: 
-            still_sweet = desugar(flat_ast)
+
         ast_tree = uniquify_frees(ast_tree)
         all_frees = find_all_frees(ast_tree)
         ast_tree = heapify(ast_tree, all_frees)
@@ -82,6 +76,10 @@ def main():
         ast.fix_missing_locations(ast_tree)
         ast_tree = flat_calls(ast_tree)
         ast_tree = func_flattener(ast_tree)
+        ast_tree = cond_nest(ast_tree)
+        desugar(ast_tree)   
+        flat_ast = flatten(ast_tree)
+        
         still_sweet = 1
         while still_sweet: 
             still_sweet = desugar(flat_ast)

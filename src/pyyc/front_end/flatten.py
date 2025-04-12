@@ -52,6 +52,32 @@ def heapify(ast_tree, free_vars):
         def __init__(self, free_vars):
             self.free_vars = set(free_vars)  
 
+        def get_free_vars(self, func_node):
+            class FreeFinder(ast.NodeVisitor):
+                def __init__(self): 
+                    self.used_vars = set()
+                    self.bound_vars = set()
+
+                def visit_arg(self, node):
+                    self.bound_vars.add(node.arg)
+
+                def visit_Name(self, node): 
+                    if node.id not in ("print", "id", "eval", "input", "int"):
+                        if isinstance(node.ctx, ast.Load): 
+                            self.used_vars.add(node.id)
+                        elif isinstance(node.ctx, ast.Store): 
+                            self.bound_vars.add(node.id)
+                
+                def get_free_vars(self):
+                    return self.used_vars - self.bound_vars  
+
+            if isinstance(func_node, (ast.FunctionDef, ast.Lambda)): 
+                finder = FreeFinder()
+                finder.visit(func_node)
+                return finder.get_free_vars()
+
+            return set()   
+        
         def visit_Name(self, node):
             if node.id in self.free_vars:
                 if isinstance(node.ctx, ast.Load):  
@@ -73,6 +99,19 @@ def heapify(ast_tree, free_vars):
                 self.generic_visit(node)
             return node 
         
+        def visit_FunctionDef(self, node):
+            ext_free_vars = self.free_vars
+            self.free_vars = self.get_free_vars(node)
+            self.generic_visit(node)
+            self.free_vars = ext_free_vars
+            return node
+        def visit_Lambda(self, node):
+            ext_free_vars = self.free_vars
+            self.free_vars = self.get_free_vars(node)
+            self.generic_visit(node)
+            self.free_vars = ext_free_vars
+            return node
+        
     def pre_heapify(ast_tree, free_vars): 
         pre_heaps = []
         for free_var in free_vars:
@@ -86,10 +125,6 @@ def heapify(ast_tree, free_vars):
             
     heapified = Heapifier(free_vars).visit(ast_tree)
     return pre_heapify(heapified, free_vars)
-
-import ast
-import copy
-
 
 def flatpy_closure(ast_tree):
     add_funcs_src = """
@@ -153,7 +188,6 @@ def closure_conversion(ast_tree, global_frees):
                             self.bound_vars.add(node.id)
 
                 def get_free_vars(self):
-                    
                     return self.used_vars - self.bound_vars  
 
             if isinstance(func_node, (ast.FunctionDef, ast.Lambda)): 
@@ -277,7 +311,6 @@ def closure_conversion(ast_tree, global_frees):
         def visit_Lambda(self, node):
             self.generic_visit(node)
             free_vars = self.get_free_vars(node)
-
             func_name = self.lambda_prod(node.args.args, [ast.Return(value=node.body)], free_vars)
             return  self.closure_prod(func_name, free_vars, "")
 
