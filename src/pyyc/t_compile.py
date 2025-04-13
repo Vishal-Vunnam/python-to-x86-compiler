@@ -15,9 +15,11 @@ from front_end.parse import *
 
     
 def main_to_x86(count, x86): 
-    func_name = x86.split("\n")[0]
-    x86 = x86.split("\n", 1)[1]
-    add_text = ""
+    if not x86: func_name = "main"
+    else: 
+        func_name = x86.split("\n")[0]
+        x86 = x86.split("\n", 1)[1]
+    if func_name == "": func_name = "main"
     if func_name == "main":
         add_text = ".section .text\n"
     asm_main = add_text + (
@@ -44,13 +46,13 @@ def main_to_x86(count, x86):
         "    popl %ebp\n"
         "    ret\n"
     )
+
     return asm_main
 
 
 source_code = """
-x = {2: 3}
-print(x)
-
+1  +1
+print(1)
 """
 ast_tree = ast.parse(source_code)
 ast_tree = unique_valid_PO(ast_tree)
@@ -98,6 +100,8 @@ ir = simple_expr_to_x86_ir(explicated)
 ir_bodies = ir_split(ir)
 x86_bodies = []
 final_x86 = "" 
+if not ir: 
+    final_x86 = main_to_x86(0, "")
 for ir in ir_bodies:
     cf = control_flow(ir)
     keep_running = True
@@ -125,7 +129,7 @@ for ir in ir_bodies:
     x86_bodies.append(ir_to_x86(n_ir))
     final_x86 += main_to_x86(4*len(in_stack)- (4*nonlocal_stack), ir_to_x86(n_ir)) + "\n\n"
 
-# print(final_x86)
+print(final_x86)
 
 
 
