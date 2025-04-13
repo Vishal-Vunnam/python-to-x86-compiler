@@ -51,8 +51,7 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-1  +1
-print(1)
+
 """
 ast_tree = ast.parse(source_code)
 ast_tree = unique_valid_PO(ast_tree)

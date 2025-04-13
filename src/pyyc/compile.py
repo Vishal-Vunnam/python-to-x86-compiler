@@ -14,10 +14,13 @@ from front_end.flatten import *
 from front_end.parse import * 
 
     
+    
 def main_to_x86(count, x86): 
-    func_name = x86.split("\n")[0]
-    x86 = x86.split("\n", 1)[1]
-    add_text = ""
+    if not x86: func_name = "main"
+    else: 
+        func_name = x86.split("\n")[0]
+        x86 = x86.split("\n", 1)[1]
+    if func_name == "": func_name = "main"
     if func_name == "main":
         add_text = ".section .text\n"
     asm_main = add_text + (
@@ -44,8 +47,8 @@ def main_to_x86(count, x86):
         "    popl %ebp\n"
         "    ret\n"
     )
-    return asm_main
 
+    return asm_main
 
 
 def main():
@@ -98,6 +101,8 @@ def main():
         ir_bodies = ir_split(ir)
         x86_bodies = []
         final_x86 = "" 
+        if not ir: 
+            final_x86 = main_to_x86(0, "")
         for ir in ir_bodies:
             cf = control_flow(ir)
             keep_running = True
