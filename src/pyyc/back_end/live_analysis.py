@@ -504,7 +504,7 @@ def live_cfg(cfg):
     return live_set
                 
 def live_analysis(x86_IR, curr_vars):
-    runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
+    runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "set_subscript", "dict_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
     def isconst(string):
         return string[0] == "$" or string[0] == "#" 
     live_var = []
@@ -576,7 +576,7 @@ def new_ir(cfg):
     return new_ir
     
 def inter_graph(x86_IR, live_vars):
-    runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
+    runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "dict_subscript" , "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
     ig = InterferenceGraph()
     #Array for current alive variables (dyamic for appending)
     shared_vars = []
@@ -846,9 +846,9 @@ def spill_code(colored_ig, x86_ir):
 
 def get_homes(ir, ig): 
     def ignore(string):
-        # print(string)
+        print(string)
         invalid = ["else", "endif", "while", "endwhile"]
-        runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
+        runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int","dict_subscript", "get_subscript", "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
         if string in runtimes:
             return True
         for invalid_string in invalid:

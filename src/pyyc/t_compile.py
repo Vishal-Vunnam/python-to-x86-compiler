@@ -48,10 +48,8 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-def prod(a, b):
-    return 0 if b == 0 else a + prod(a, b + -1)
-
-print(prod(4, 3))
+x = {2: 3}
+print(x)
 
 """
 ast_tree = ast.parse(source_code)
@@ -121,7 +119,7 @@ for ir in ir_bodies:
         in_stack = graph_coloring(graph, n_ir, in_stack, nonlocal_stack)
         keep_running = spill_code(graph, n_ir)
     
-    print(graph)
+    # print(graph)
     get_homes(n_ir, graph)
     # print(n_ir, "\n\n")
     x86_bodies.append(ir_to_x86(n_ir))
