@@ -695,7 +695,7 @@ def get_stack_function(instructions):
 
 def graph_coloring(i_graph, X86_IR, in_stack, nonlocal_stack):
     register_priority = ['apple', 'carrot', 'donut', 'ice_cream', 'banana', 'salad']
-    stack_count = -4 + (-4 * len(in_stack)) - (4*nonlocal_stack)
+    stack_count = -4 + (4 * len(in_stack)) - (4*nonlocal_stack)
     def get_stack():
         nonlocal stack_count
         open_stack = f'{stack_count}(%ebp)'
@@ -846,7 +846,6 @@ def spill_code(colored_ig, x86_ir):
 
 def get_homes(ir, ig): 
     def ignore(string):
-        print(string)
         invalid = ["else", "endif", "while", "endwhile"]
         runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int","dict_subscript", "get_subscript", "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
         if string in runtimes:

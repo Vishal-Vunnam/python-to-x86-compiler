@@ -52,10 +52,21 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-a = 2
-b = 3
-def sum():
-    return a + b
+def add2sub1(a):
+    return sub1(add2(a))
+
+def add2(a):
+    return a + 2
+
+def sub1(a):
+    return a + -1
+
+x = 5
+while(add2sub1(x) != 10):
+    x = add2(x)
+
+print(x)
+
 """
 ast_tree = ast.parse(source_code)
 ast_tree = unique_valid_PO(ast_tree)
@@ -71,6 +82,7 @@ ast_tree = closure_flattener(ast_tree)
 ast.fix_missing_locations(ast_tree)
 ast_tree = flat_calls(ast_tree)
 ast_tree = func_flattener(ast_tree)
+print(ast.unparse(flatpy_closure(ast_tree)), "\n\n\n")
 
 # At point of heapifying call find_all_frees to get all free vars     
 ast_tree = cond_nest(ast_tree)
@@ -92,7 +104,7 @@ flat_ast = flat_dicts(flat_ast)
 flat_ast = subscript_remover(flat_ast)
 explicated = explicate(flat_ast)
 desugar(explicated)
-print(ast.unparse(explicated), "\n\n\n")
+# print(ast.unparse(explicated), "\n\n\n")
 # print(ast.unparse(explicated), "\n\n\n")
 # # print(ast.dump(explicated, indent = 4))
 
@@ -130,9 +142,11 @@ for ir in ir_bodies:
     get_homes(n_ir, graph)
     # print(n_ir, "\n\n")
     x86_bodies.append(ir_to_x86(n_ir))
+    print(in_stack)
+    print(nonlocal_stack)
+    print(4*len(in_stack)- (4*nonlocal_stack))
     final_x86 += main_to_x86(4*len(in_stack)- (4*nonlocal_stack), ir_to_x86(n_ir)) + "\n\n"
 
-print(final_x86)
 
 
 
