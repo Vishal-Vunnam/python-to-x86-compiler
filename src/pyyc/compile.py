@@ -23,6 +23,7 @@ def main_to_x86(count, x86):
     if func_name == "": func_name = "main"
     if func_name == "main":
         add_text = ".section .text\n"
+    else: add_text = ""
     asm_main = add_text + (
         f".type {func_name}, @function\n"
         f".globl {func_name}\n"
@@ -49,6 +50,7 @@ def main_to_x86(count, x86):
     )
 
     return asm_main
+
 
 
 def main():
