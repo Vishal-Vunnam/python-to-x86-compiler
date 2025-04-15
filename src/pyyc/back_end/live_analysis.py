@@ -467,11 +467,13 @@ def live_cfg(cfg):
                     stack.append((cfg.edges[vertex][0], set()))
                     continue
                 if cfg.vertices[vertex].body[0]['instr'].startswith("while"):
+                    pdb.set_trace()
                     do_union(vertex, return_to[-1], new_vars)
                     start = find_while("end" + cfg.vertices[vertex].body[0]['instr'])
                     do_union(vertex, start, while_checks[-1])
                     # Union the while loop with itself
                     do_union(start, return_to[-1], while_checks[-1])
+                    new_vars = new_vars | while_checks[-1]
                     return_to.pop()
                     while_checks.pop()
                 if cfg.vertices[vertex].body[-1]['loc1'].startswith("endwhile"):
@@ -508,7 +510,7 @@ def live_cfg(cfg):
 def live_analysis(x86_IR, curr_vars):
     runtimes = ( "is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "set_subscript", "dict_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
     def isconst(string):
-        return string[0] == "$" or string[0] == "#" 
+        return string[0] == "$" or string[0] == "#" or string.startswith("Lambda_") 
     live_var = []
     current_vars = curr_vars.copy()
     def build(ir):
@@ -666,7 +668,8 @@ def inter_graph(x86_IR, live_vars):
                         for var in live_vars:
                             ig.add_edge(arg, var)
             # print has a read register (interference)
-            elif ir['loc1'] not in ("eval_input") and not isconst(ir['loc1']):
+            elif ir['loc1'] != "eval_input" and not isconst(ir['loc1']):
+                # if ir['loc1'] == "ltmp_36":
                 for var in live_vars:    
                     ig.add_edge(ir['loc1'], var)
         if ir['instr'] == "Function":
