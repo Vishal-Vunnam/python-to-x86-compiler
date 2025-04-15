@@ -467,7 +467,6 @@ def live_cfg(cfg):
                     stack.append((cfg.edges[vertex][0], set()))
                     continue
                 if cfg.vertices[vertex].body[0]['instr'].startswith("while"):
-                    pdb.set_trace()
                     do_union(vertex, return_to[-1], new_vars)
                     start = find_while("end" + cfg.vertices[vertex].body[0]['instr'])
                     do_union(vertex, start, while_checks[-1])
