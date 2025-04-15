@@ -228,8 +228,11 @@ def simple_expr_to_x86_ir(tree):
 
         elif isinstance(n, Expr):
             if (isinstance(n.value, Call)):
-                arg_string = ", ".join(ir_rec(arg) for arg in n.value.args)
-                add_instruction("call", arg_string, n.value.func.id)
+                if n.value.func.id in ("eval"):
+                    add_instruction("call", "eval_input", "")
+                else: 
+                    arg_string = ", ".join(ir_rec(arg) for arg in n.value.args)
+                    add_instruction("call", arg_string, n.value.func.id)
         elif isinstance(n, Name):
             return f"{n.id}"
         elif isinstance(n, BinOp):
@@ -253,7 +256,6 @@ def simple_expr_to_x86_ir(tree):
                 add_instruction("nequals", left, comparator ) 
         elif isinstance(n, Call):
             arg_string = ", ".join(ir_rec(arg) for arg in n.args if isinstance(arg, (Name, Constant)))
-
             if n.func.id == "is_true":
                 add_instruction("call", ir_rec(n.args[0]), "is_true")
                 return "#bool"
@@ -504,7 +506,7 @@ def live_cfg(cfg):
     return live_set
                 
 def live_analysis(x86_IR, curr_vars):
-    runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "set_subscript", "dict_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
+    runtimes = ( "is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int", "get_subscript", "set_subscript", "dict_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
     def isconst(string):
         return string[0] == "$" or string[0] == "#" 
     live_var = []
@@ -847,7 +849,7 @@ def spill_code(colored_ig, x86_ir):
 def get_homes(ir, ig): 
     def ignore(string):
         invalid = ["else", "endif", "while", "endwhile"]
-        runtimes = ("is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int","dict_subscript", "get_subscript", "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
+        runtimes = ("eval", "is_int", "is_bool", "is_big", "is_big", "inject_int", "inject_bool", "inject_big", "project_int", "project_bool", "project_big", "is_true", "print", "eval_input", "int","dict_subscript", "get_subscript", "set_subscript", "add", "equal", "not_equal", "create_list", "create_dict", "create_closure", "get_fun_ptr", "get_free_vars")
         if string in runtimes:
             return True
         for invalid_string in invalid:

@@ -52,21 +52,10 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-def add2sub1(a):
-    return sub1(add2(a))
-
-def add2(a):
-    return a + 2
-
-def sub1(a):
-    return a + -1
-
-x = 5
-while(add2sub1(x) != 10):
-    x = add2(x)
-
-print(x)
-
+x = 10
+while (int(x != 0)):
+    x = x + -1
+    eval(input())
 """
 ast_tree = ast.parse(source_code)
 ast_tree = unique_valid_PO(ast_tree)
@@ -110,6 +99,7 @@ desugar(explicated)
 
 # # pyobj set_subscript(pyobj c, pyobj key, pyobj val);
 flat_w_runtimes = runtime(explicated)
+
 # print(ast.unparse(flat_w_runtimes), "\n\n\n")
 ir = simple_expr_to_x86_ir(explicated) 
 ir_bodies = ir_split(ir)
@@ -140,13 +130,13 @@ for ir in ir_bodies:
     
     # print(graph)
     get_homes(n_ir, graph)
-    # print(n_ir, "\n\n")
+    print(n_ir, "\n\n")
     x86_bodies.append(ir_to_x86(n_ir))
     print(in_stack)
     print(nonlocal_stack)
     print(4*len(in_stack)- (4*nonlocal_stack))
     final_x86 += main_to_x86(4*len(in_stack)- (4*nonlocal_stack), ir_to_x86(n_ir)) + "\n\n"
-
+# print(final_x86)
 
 
 
