@@ -52,9 +52,11 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-x = 0
-print(int(x == 0) or int(x == 1))
-
+def f(x):
+    def g(y):
+        return y + x
+    return g
+print(f(1)(2))
 
 """
 ast_tree = ast.parse(source_code)
@@ -63,8 +65,9 @@ ast_tree = unique_valid_PO(ast_tree)
 # print(ast.unparse(flat_ast), "\n\n\n")
 ast_tree = uniquify_frees(ast_tree)
 all_frees = find_all_frees(ast_tree)
-print(all_frees)
 ast_tree = heapify(ast_tree, all_frees)
+ast_tree = ast.fix_missing_locations(ast_tree)
+print(ast.unparse(ast_tree))
 ast_tree = closure_conversion(ast_tree, all_frees)
 ast_tree = closure_flattener(ast_tree)
 ast.fix_missing_locations(ast_tree)
@@ -90,10 +93,10 @@ while still_sweet:
 flat_ast = flat_lists(flat_ast)
 flat_ast = flat_dicts(flat_ast)
 flat_ast = subscript_remover(flat_ast)
-print("BEFORE EXPLICATE", ast.unparse(flat_ast), "\n\n\n")
+print(ast.unparse(flat_ast), "\n\n\n")
 explicated = explicate(flat_ast)
 desugar(explicated)
-print("/n",ast.unparse(explicated), "\n\n\n")
+# print("/n",ast.unparse(explicated), "\n\n\n")
 # print(ast.unparse(explicated), "\n\n\n")
 # # print(ast.dump(explicated, indent = 4))
 
@@ -127,7 +130,6 @@ for ir in ir_bodies:
         # print(n_ir)
         # # print("hey", in_stack)
         in_stack = graph_coloring(graph, n_ir, in_stack, nonlocal_stack)
-        print(graph)
         keep_running = spill_code(graph, n_ir)
     
     # print(graph)

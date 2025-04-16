@@ -24,6 +24,12 @@ def find_all_frees(tree):
                             self.used_vars.add(node.id)
                         elif isinstance(node.ctx, ast.Store): 
                             self.bound_vars.add(node.id)
+
+                def visit_FunctionDef(self, node):
+                    self.bound_vars.add(node.name)
+                    self.generic_visit(node)
+                
+    
                 
                 def get_free_vars(self):
                     return self.used_vars - self.bound_vars  
@@ -67,6 +73,12 @@ def heapify(ast_tree, free_vars):
                             self.used_vars.add(node.id)
                         elif isinstance(node.ctx, ast.Store): 
                             self.bound_vars.add(node.id)
+
+                def visit_FunctionDef(self, node):
+                    self.bound_vars.add(node.name)
+                    self.generic_visit(node)
+                
+    
                 
                 def get_free_vars(self):
                     return self.used_vars - self.bound_vars  
@@ -170,26 +182,25 @@ def closure_conversion(ast_tree, global_frees):
                 def __init__(self): 
                     self.used_vars = set()
                     self.bound_vars = set()
-                
-                def ignore(self, string):
-                    if string in ["print", "id", "eval", "input", "int", "create_closure", "get_fun_ptr", "get_free_vars", "set_subscript"] or string.startswith("Lambda_"):
-                        return True
-                    return False
-                    
 
                 def visit_arg(self, node):
                     self.bound_vars.add(node.arg)
 
-                def visit_Name(self, node):
-                    if not self.ignore(node.id):
+                def visit_Name(self, node): 
+                    if node.id not in ("print", "id", "eval", "input", "int"):
                         if isinstance(node.ctx, ast.Load): 
                             self.used_vars.add(node.id)
                         elif isinstance(node.ctx, ast.Store): 
                             self.bound_vars.add(node.id)
 
+                def visit_FunctionDef(self, node):
+                    self.bound_vars.add(node.name)
+                    self.generic_visit(node)
+                
+    
+                
                 def get_free_vars(self):
                     return self.used_vars - self.bound_vars  
-
             if isinstance(func_node, (ast.FunctionDef, ast.Lambda)): 
                 finder = FreeFinder()
                 finder.visit(func_node)
@@ -381,9 +392,16 @@ def uniquify_frees(ast_tree):
                             self.used_vars.add(node.id)
                         elif isinstance(node.ctx, ast.Store): 
                             self.bound_vars.add(node.id)
+
+                def visit_FunctionDef(self, node):
+                    self.bound_vars.add(node.name)
+                    self.generic_visit(node)
+                
+    
                 
                 def get_free_vars(self):
                     return self.used_vars - self.bound_vars  
+
 
             if isinstance(func_node, (ast.FunctionDef, ast.Lambda)):
                 finder = FreeFinder()
@@ -392,7 +410,7 @@ def uniquify_frees(ast_tree):
 
             return set() 
         
-        def rename_bound_vars(self, node, free_vars):
+        def rename_bound_vars(self, node, free_vars, func_name):
             class BoundVarRenamer(ast.NodeTransformer):
                 def __init__(self, free_vars, func_ct):
                     super().__init__()
@@ -410,6 +428,15 @@ def uniquify_frees(ast_tree):
                     if node.arg not in self.free_vars:
                         node.arg = node.arg + f"_b{self.func_ct}"
                     return node
+                
+                def visit_FunctionDef(self, node):
+                    if node.name == func_name:
+                        self.generic_visit(node)
+                        return node
+                    if node.name not in self.free_vars:
+                        node.name = node.name + f"_b{self.func_ct}"
+                        return node
+                    
 
             return BoundVarRenamer(free_vars, self.func_ct).visit(node)
 
@@ -417,7 +444,7 @@ def uniquify_frees(ast_tree):
             self.generic_visit(node)
             free_vars = self.get_free_vars(node)
             print(f"Free variables in function: {free_vars}")
-            node = self.rename_bound_vars(node, free_vars)
+            node = self.rename_bound_vars(node, free_vars, node.name)
             self.func_ct += 1
             return node
         
@@ -425,7 +452,7 @@ def uniquify_frees(ast_tree):
             self.generic_visit(node) 
             free_vars = self.get_free_vars(node)
             print(f"Free variables in lambda: {free_vars}")
-            node = self.rename_bound_vars(node, free_vars)
+            node = self.rename_bound_vars(node, free_vars, "")
             self.func_ct += 1
             return node
 
@@ -1232,7 +1259,6 @@ def explicate(flat_ast):
         else:
             return n
     def rec(n): 
-        print(ast.unparse(n))
         if isinstance(n, ast.Assign):
             if isinstance(n.value, ast.Call):
                 call_unbox(n)
@@ -1269,8 +1295,6 @@ def explicate(flat_ast):
                 _append(n)
 
         elif isinstance(n, ast.If):
-            print("IF")
-            print(ast.unparse(n))
             test_temp = ltemp()
             if_unbox(n.test, test_temp)
             n.test = ast.Name(id=test_temp, ctx=ast.Load())
