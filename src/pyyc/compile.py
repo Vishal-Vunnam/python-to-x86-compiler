@@ -77,6 +77,7 @@ def main():
         all_frees = find_all_frees(ast_tree)
         ast_tree = heapify(ast_tree, all_frees)
         ast_tree = closure_conversion(ast_tree, all_frees)
+        ast_tree = in_func_heapify(ast_tree)
         ast_tree = closure_flattener(ast_tree)
         ast.fix_missing_locations(ast_tree)
         ast_tree = flat_calls(ast_tree)

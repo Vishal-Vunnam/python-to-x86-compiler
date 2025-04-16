@@ -70,7 +70,7 @@ ast_tree = closure_flattener(ast_tree)
 ast.fix_missing_locations(ast_tree)
 ast_tree = flat_calls(ast_tree)
 ast_tree = func_flattener(ast_tree)
-# print(ast.unparse(flatpy_closure(ast_tree)), "\n\n\n")
+print(ast.unparse(flatpy_closure(ast_tree)), "\n\n\n")
 
 # At point of heapifying call find_all_frees to get all free vars     
 ast_tree = cond_nest(ast_tree)
