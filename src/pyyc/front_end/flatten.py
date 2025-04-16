@@ -52,7 +52,7 @@ def heapify(ast_tree, free_vars):
         def __init__(self, free_vars):
             self.free_vars = set(free_vars)  
 
-        def get_free_vars(self, func_node):
+        def get_free_vars(self, func_node, func_name):
             class FreeFinder(ast.NodeVisitor):
                 def __init__(self): 
                     self.used_vars = set()
@@ -69,7 +69,8 @@ def heapify(ast_tree, free_vars):
                             self.bound_vars.add(node.id)
 
                 def visit_FunctionDef(self, node):
-                    self.bound_vars.add(node.name)
+                    if node.name != func_name:
+                        self.bound_vars.add(node.name)
                     self.generic_visit(node)
 
                     
@@ -108,13 +109,14 @@ def heapify(ast_tree, free_vars):
         
         def visit_FunctionDef(self, node):
             ext_free_vars = self.free_vars
-            self.free_vars = self.get_free_vars(node)
+            self.free_vars = self.get_free_vars(node, node.name)
+            print(f"Free variables in function{node.name}: {self.free_vars}")
             self.generic_visit(node)
             self.free_vars = ext_free_vars
             return node
         def visit_Lambda(self, node):
             ext_free_vars = self.free_vars
-            self.free_vars = self.get_free_vars(node)
+            self.free_vars = self.get_free_vars(node, "")
             self.generic_visit(node)
             self.free_vars = ext_free_vars
             return node

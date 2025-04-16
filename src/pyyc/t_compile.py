@@ -52,21 +52,10 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-def add2sub1(a):
-    return sub1(add2(a))
+def prod(a, b):
+    return 0 if b == 0 else a + prod(a, b + -1)
 
-def add2(a):
-    return a + 2
-
-def sub1(a):
-    return a + -1
-
-x = 5
-while(add2sub1(x) != 10):
-    x = add2(x)
-
-print(x)
-
+print(prod(4, 3))
 
 """
 ast_tree = ast.parse(source_code)
