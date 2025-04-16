@@ -1232,6 +1232,7 @@ def explicate(flat_ast):
         else:
             return n
     def rec(n): 
+        print(ast.unparse(n))
         if isinstance(n, ast.Assign):
             if isinstance(n.value, ast.Call):
                 call_unbox(n)
@@ -1268,6 +1269,8 @@ def explicate(flat_ast):
                 _append(n)
 
         elif isinstance(n, ast.If):
+            print("IF")
+            print(ast.unparse(n))
             test_temp = ltemp()
             if_unbox(n.test, test_temp)
             n.test = ast.Name(id=test_temp, ctx=ast.Load())
@@ -1448,7 +1451,7 @@ def desugar(tree):
                 if isinstance(expr.op, ast.Or):
                     body_val = test_expr
                     else_val = alt_expr
-                else:  # And
+                else:  
                     body_val = alt_expr
                     else_val = test_expr
             elif isinstance(expr, ast.IfExp):
@@ -1466,7 +1469,18 @@ def desugar(tree):
                 stmts.append(ast.Assign(targets=[test_store], value=test_expr))
                 test_expr = test_var  # Replace test with the temp variable
 
-            # Construct the if statement assigning to the temp result
+            if isinstance(expr, ast.BoolOp):
+                if isinstance(expr.op, ast.Or):
+                    body_val = test_expr
+                    else_val = alt_expr
+                else:  
+                    body_val = alt_expr
+                    else_val = test_expr
+            elif isinstance(expr, ast.IfExp):
+                test_expr = expr.test
+                body_val = expr.body
+                else_val = expr.orelse
+
             if_stmt = ast.If(
                 test=test_expr,
                 body=[ast.Assign(targets=[store_temp], value=body_val)],

@@ -52,26 +52,13 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-def add2sub1(a):
-    return sub1(add2(a))
-
-def add2(a):
-    return a + 2
-
-def sub1(a):
-    return a + -1
-
-x = 5
-while(add2sub1(x) != 10):
-    x = add2(x)
-
-print(x)
+x = 0
+print(int(x == 0) or int(x == 1))
 
 
 """
 ast_tree = ast.parse(source_code)
 ast_tree = unique_valid_PO(ast_tree)
-
 # print(ast.unparse(flat_ast), "\n\n\n")
 # print(ast.unparse(flat_ast), "\n\n\n")
 ast_tree = uniquify_frees(ast_tree)
@@ -103,6 +90,7 @@ while still_sweet:
 flat_ast = flat_lists(flat_ast)
 flat_ast = flat_dicts(flat_ast)
 flat_ast = subscript_remover(flat_ast)
+print("BEFORE EXPLICATE", ast.unparse(flat_ast), "\n\n\n")
 explicated = explicate(flat_ast)
 desugar(explicated)
 print("/n",ast.unparse(explicated), "\n\n\n")
@@ -132,7 +120,7 @@ for ir in ir_bodies:
         cf = control_flow(n_ir)
         la = live_cfg(cf)
         flat_la = la_flat(la)
-        pprint.pprint(flat_la)
+        # pprint.pprint(flat_la)
         n_ir = new_ir(cf)
         keep_running = False
         graph = inter_graph(n_ir, flat_la)
