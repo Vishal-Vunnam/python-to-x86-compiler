@@ -330,6 +330,24 @@ def closure_conversion(ast_tree, global_frees):
 
     return ast.fix_missing_locations(transformed_tree)
 
+def in_func_heapify(ast_tree):
+    class InFuncHeapifier(ast.NodeTransformer):
+        class findClosure(ast.NodeTransformer):
+            def visit_Call(self, node):
+                if isinstance(node.func, Name) and node.func.id == "create_closure":
+                    if isinstance(node.args[1], ast.List):
+                        for i, elt in enumerate(node.args[1].elts):
+                            node.args[1].elts[i] = ast.List(elts=[elt], ctx=ast.Load())
+                return node
+            
+        def visit_FunctionDef(self, node):
+            self.generic_visit(node)
+            closurifier = InFuncHeapifier.findClosure()
+            node.body = [closurifier.visit(stmt) for stmt in node.body]
+            return node
+    heapified = InFuncHeapifier().visit(ast_tree)
+    return ast.fix_missing_locations(heapified)
+
 def closure_flattener(ast_tree):
     class ClosureFlattener(ast.NodeTransformer):
         def __init__(self):
@@ -1232,7 +1250,6 @@ def explicate(flat_ast):
         else:
             return n
     def rec(n): 
-        print(ast.unparse(n))
         if isinstance(n, ast.Assign):
             if isinstance(n.value, ast.Call):
                 call_unbox(n)
@@ -1269,8 +1286,6 @@ def explicate(flat_ast):
                 _append(n)
 
         elif isinstance(n, ast.If):
-            print("IF")
-            print(ast.unparse(n))
             test_temp = ltemp()
             if_unbox(n.test, test_temp)
             n.test = ast.Name(id=test_temp, ctx=ast.Load())

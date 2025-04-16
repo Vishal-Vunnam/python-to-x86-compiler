@@ -52,11 +52,8 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-def f(x):
-    def g():
-        return x
-    return g()
-print(f(1))
+nl = lambda x: lambda y: x + y
+print(nl(23)(42))
 """
 ast_tree = ast.parse(source_code)
 ast_tree = unique_valid_PO(ast_tree)
@@ -66,19 +63,20 @@ ast_tree = uniquify_frees(ast_tree)
 all_frees = find_all_frees(ast_tree)
 ast_tree = heapify(ast_tree, all_frees)
 ast_tree = ast.fix_missing_locations(ast_tree)
-print(ast.unparse(ast_tree))
 ast_tree = closure_conversion(ast_tree, all_frees)
+ast_tree = in_func_heapify(ast_tree)
+print(ast.unparse(ast_tree), "\n\n\n")
 ast_tree = closure_flattener(ast_tree)
 ast.fix_missing_locations(ast_tree)
 ast_tree = flat_calls(ast_tree)
 ast_tree = func_flattener(ast_tree)
-print(ast.unparse(flatpy_closure(ast_tree)), "\n\n\n")
+# print(ast.unparse(flatpy_closure(ast_tree)), "\n\n\n")
 
 # At point of heapifying call find_all_frees to get all free vars     
 ast_tree = cond_nest(ast_tree)
 desugar(ast_tree) 
 desugar(ast_tree)  
-print(ast.unparse(ast_tree), "\n\n\n")
+# print(ast.unparse(ast_tree), "\n\n\n")
 flat_ast = flatten(ast_tree)
 still_sweet = 1
 while still_sweet: 
