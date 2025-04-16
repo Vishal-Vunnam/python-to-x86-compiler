@@ -52,16 +52,11 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-x = 7
-
-def y():
-    f = 7
-
-def f():
-    x = 2
-    return lambda y: x + y
-
-print(f()(3))
+def f(x):
+    def g():
+        return x
+    return g()
+print(f(1))
 """
 ast_tree = ast.parse(source_code)
 ast_tree = unique_valid_PO(ast_tree)
