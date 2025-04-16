@@ -73,11 +73,8 @@ def heapify(ast_tree, free_vars):
                         self.bound_vars.add(node.name)
                     self.generic_visit(node)
 
-                    
-                
                 def get_free_vars(self):
                     return self.used_vars - self.bound_vars  
-                
 
             if isinstance(func_node, (ast.FunctionDef, ast.Lambda)): 
                 finder = FreeFinder()
@@ -110,30 +107,32 @@ def heapify(ast_tree, free_vars):
         def visit_FunctionDef(self, node):
             ext_free_vars = self.free_vars
             self.free_vars = self.get_free_vars(node, node.name)
-            print(f"Free variables in function{node.name}: {self.free_vars}")
+            print(f"Free variables in function {node.name}: {self.free_vars}")
             self.generic_visit(node)
             self.free_vars = ext_free_vars
             return node
+
         def visit_Lambda(self, node):
             ext_free_vars = self.free_vars
             self.free_vars = self.get_free_vars(node, "")
             self.generic_visit(node)
             self.free_vars = ext_free_vars
             return node
-        
-    def pre_heapify(ast_tree, free_vars): 
-        pre_heaps = []
-        for free_var in free_vars:
-            pre_heap = ast.Assign(
-                    targets = [ast.Name(id = free_var, ctx = ast.Store())], 
+
+        def pre_heapify(self, ast_tree):
+            pre_heaps = []
+            for free_var in self.free_vars:
+                pre_heap = ast.Assign(
+                    targets=[ast.Name(id=free_var, ctx=ast.Store())], 
                     value=ast.List(elts=[ast.Constant(value=0)], ctx=ast.Load())
                 )
-            pre_heaps.append(pre_heap)
-        ast_tree.body = pre_heaps + ast_tree.body
-        return ast_tree
-            
-    heapified = Heapifier(free_vars).visit(ast_tree)
-    return pre_heapify(heapified, free_vars)
+                pre_heaps.append(pre_heap)
+            ast_tree.body = pre_heaps + ast_tree.body
+            return ast_tree
+
+    heapifier = Heapifier(free_vars)
+    heapified = heapifier.visit(ast_tree)
+    return heapifier.pre_heapify(heapified)
 
 def flatpy_closure(ast_tree):
     add_funcs_src = """
