@@ -67,9 +67,15 @@ def heapify(ast_tree, free_vars):
                             self.used_vars.add(node.id)
                         elif isinstance(node.ctx, ast.Store): 
                             self.bound_vars.add(node.id)
+
+                def visit_FunctionDef(self, node):
+                    self.bound_vars.add(node.name)
+                    
+                    
                 
                 def get_free_vars(self):
                     return self.used_vars - self.bound_vars  
+                
 
             if isinstance(func_node, (ast.FunctionDef, ast.Lambda)): 
                 finder = FreeFinder()

@@ -55,8 +55,8 @@ source_code = """
 def f(x):
     def g(y):
         return y + x
-    return g
-print(f(1)(2))
+    return g(2)
+print(f(1))
 
 """
 ast_tree = ast.parse(source_code)
