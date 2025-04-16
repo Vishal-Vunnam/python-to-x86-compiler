@@ -90,13 +90,13 @@ def heapify(ast_tree, free_vars):
             return node  
 
         def visit_Assign(self, node):
-            self.generic_visit(node.value)
             if isinstance(node.targets[0], ast.Name) and node.targets[0].id in self.free_vars:
                 node.targets[0] = ast.Subscript(
                         value=node.targets[0],  
                         slice=ast.Constant(value=0),  
                         ctx=ast.Load()
                     )
+                self.generic_visit(node.value)
             elif isinstance(node.targets[0], ast.Name) and node.targets[0].id not in self.free_vars: 
                 self.generic_visit(node)
             return node 
