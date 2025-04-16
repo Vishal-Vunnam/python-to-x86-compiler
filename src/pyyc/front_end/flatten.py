@@ -86,9 +86,11 @@ def heapify(ast_tree, free_vars):
                         slice=ast.Constant(value=0),  
                         ctx=ast.Load()
                     )
+            
             return node  
 
         def visit_Assign(self, node):
+            self.generic_visit(node)
             if isinstance(node.targets[0], ast.Name) and node.targets[0].id in self.free_vars:
                 node.targets[0] = ast.Subscript(
                         value=node.targets[0],  
