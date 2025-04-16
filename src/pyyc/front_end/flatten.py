@@ -70,7 +70,8 @@ def heapify(ast_tree, free_vars):
 
                 def visit_FunctionDef(self, node):
                     self.bound_vars.add(node.name)
-                    
+                    self.generic_visit(node)
+
                     
                 
                 def get_free_vars(self):
