@@ -52,13 +52,8 @@ def main_to_x86(count, x86):
 
 
 source_code = """
-def is_even(n):
-    return is_odd(n + -1) if n != 0 else True
-
-is_odd = lambda n: is_even(n + -1) if n != 0 else False
-
-
-print(is_odd(23))
+nl = lambda x: (lambda y: x + y)(2)
+print(nl(23))
 
 """
 ast_tree = ast.parse(source_code)
@@ -67,12 +62,11 @@ ast_tree = unique_valid_PO(ast_tree)
 # print(ast.unparse(flat_ast), "\n\n\n")
 ast_tree = uniquify_frees(ast_tree)
 all_frees = find_all_frees(ast_tree)
-print(ast.unparse(ast_tree), "\n\n\n")
 ast_tree = heapify(ast_tree, all_frees)
 ast_tree = ast.fix_missing_locations(ast_tree)
 ast_tree = closure_conversion(ast_tree, all_frees)
-ast_tree = in_func_heapify(ast_tree)
 print(ast.unparse(ast_tree), "\n\n\n")
+ast_tree = in_func_heapify(ast_tree)
 ast_tree = closure_flattener(ast_tree)
 ast.fix_missing_locations(ast_tree)
 ast_tree = flat_calls(ast_tree)
@@ -97,7 +91,6 @@ while still_sweet:
 flat_ast = flat_lists(flat_ast)
 flat_ast = flat_dicts(flat_ast)
 flat_ast = subscript_remover(flat_ast)
-print(ast.unparse(flat_ast), "\n\n\n")
 explicated = explicate(flat_ast)
 desugar(explicated)
 # print("/n",ast.unparse(explicated), "\n\n\n")

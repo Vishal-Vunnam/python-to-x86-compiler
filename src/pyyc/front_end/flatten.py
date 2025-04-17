@@ -340,6 +340,10 @@ def in_func_heapify(ast_tree):
                     if isinstance(node.args[1], ast.List):
                         for i, elt in enumerate(node.args[1].elts):
                             node.args[1].elts[i] = ast.List(elts=[elt], ctx=ast.Load())
+                else:
+                    for arg in node.args:
+                        if isinstance(arg, ast.Call):
+                            self.visit(arg)
                 return node
             
         def visit_FunctionDef(self, node):
@@ -348,6 +352,7 @@ def in_func_heapify(ast_tree):
             node.body = [closurifier.visit(stmt) for stmt in node.body]
             return node
     heapified = InFuncHeapifier().visit(ast_tree)
+    print(ast.unparse(heapified))
     return ast.fix_missing_locations(heapified)
 
 def closure_flattener(ast_tree):
