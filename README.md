@@ -76,7 +76,7 @@ cd tests
 pytest --pyyctests autograde
 Tests are organized by difficulty and feature coverage to aid iterative development.
 
-💡 Goals of This Project
+## 💡 Goals of This Project
 Implement a full compiler pipeline from Python to x86
 
 Explore register allocation, control flow graphs, and interference graphs
@@ -85,7 +85,7 @@ Understand low-level code generation and runtime system interaction
 
 Build a system that can be tested against real programs
 
-📦 Environment Setup
+## 📦 Environment Setup
 To isolate dependencies, consider using pipenv or venv to manage Python versions and required packages.
 
 Let me know if you’d like this adapted for a personal website, technical blog, or portfolio project!
