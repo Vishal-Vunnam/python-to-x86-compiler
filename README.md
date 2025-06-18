@@ -57,7 +57,7 @@ Edit
 diff -w -B -u mytests/test1.expected mytests/test1.out
 You can automate some of these steps using make targets included in Test.mk.
 
-🧪 Automated Testing
+## 🧪 Automated Testing
 A testing framework is included using pytest, which makes it easy to validate the compiler across a wide range of test cases.
 
 Run tests on your own suite:
