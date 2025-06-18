@@ -1,50 +1,55 @@
-###Compiler Construction Labs
-This repository contains a series of compiler construction lab projects exploring the design and implementation of a Python-to-x86 compiler. The project includes a minimal runtime system, a compiler wrapper script (pyyc), and a Makefile for convenience.
+# Compiler Construction Labs
+
+This repository contains a series of compiler construction lab projects exploring the design and implementation of a Python-to-x86 compiler. The project includes a minimal runtime system, a compiler wrapper script (`pyyc`), and a Makefile for convenience.
 
 These labs are designed to be flexible and open-ended, allowing for experimentation with various compilation strategies, optimizations, and intermediate representations.
 
-##🔧 Using the Compiler
-The compiler takes a .py file as input and generates an equivalent .s x86 assembly file. The default setup assumes you're using Python 3.10 and that the main compiler entry point is at src/pyyc/compile.py.
+---
 
-You can modify the pyyc wrapper script if your compiler location or Python
-🛠 Build & Run Instructions
-1. Build the runtime system (if not already built):
+## 🔧 Using the Compiler
 
-bash
-Copy
-Edit
-make -C runtime
-2. Build the compiler:
+The compiler takes a `.py` file as input and generates an equivalent `.s` x86 assembly file. The default setup assumes you're using **Python 3.10** and that the main compiler entry point is at `src/pyyc/compile.py`.
+
+You can modify the `pyyc` wrapper script if your compiler location or Python version differs.
+
+---
+
+## 🛠 Build & Run Instructions
+
+1. **Build the runtime system (if not already built):**
+   ```bash
+   make -C runtime
+Build the compiler:
 
 bash
 Copy
 Edit
 make
-3. Compile a test Python program:
+Compile a test Python program:
 
 bash
 Copy
 Edit
 ./pyyc mytests/test1.py
-4. Link the generated assembly with the runtime:
+Link the generated assembly with the runtime:
 
 bash
 Copy
 Edit
 gcc -m32 -g mytests/test1.s runtime/libpyyruntime.a -lm -o mytests/test1
-5. Run the compiled binary:
+Run the compiled binary:
 
 bash
 Copy
 Edit
 cat mytests/test1.in | mytests/test1 > mytests/test1.out
-6. Generate the expected output using Python 3.10:
+Generate the expected output using Python 3.10:
 
 bash
 Copy
 Edit
 cat mytests/test1.in | python3.10 mytests/test1.py > mytests/test1.expected
-7. Compare your program's output:
+Compare your program's output:
 
 bash
 Copy
@@ -52,7 +57,7 @@ Edit
 diff -w -B -u mytests/test1.expected mytests/test1.out
 You can automate some of these steps using make targets included in Test.mk.
 
-##🧪 Automated Testing
+🧪 Automated Testing
 A testing framework is included using pytest, which makes it easy to validate the compiler across a wide range of test cases.
 
 Run tests on your own suite:
@@ -71,7 +76,7 @@ cd tests
 pytest --pyyctests autograde
 Tests are organized by difficulty and feature coverage to aid iterative development.
 
-##💡 Goals of This Project
+💡 Goals of This Project
 Implement a full compiler pipeline from Python to x86
 
 Explore register allocation, control flow graphs, and interference graphs
@@ -80,11 +85,18 @@ Understand low-level code generation and runtime system interaction
 
 Build a system that can be tested against real programs
 
-##📦 Environment Setup
+📦 Environment Setup
 To isolate dependencies, consider using pipenv or venv to manage Python versions and required packages.
 
-Let me know if you’d like this adapted to a website README, GitHub profile, or portfolio piece!
+Let me know if you’d like this adapted for a personal website, technical blog, or portfolio project!
 
+yaml
+Copy
+Edit
+
+---
+
+Just copy and paste the above Markdown into your `README.md` file. If you want any badges, project screenshots, or GIF demos added, I can help with that too.
 
 
 
