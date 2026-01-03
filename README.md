@@ -1,18 +1,3 @@
-# Compiler Construction Labs
-
-This repository contains a series of compiler construction lab projects exploring the design and implementation of a Python-to-x86 compiler. The project includes a minimal runtime system, a compiler wrapper script (`pyyc`), and a Makefile for convenience.
-
-These labs are designed to be flexible and open-ended, allowing for experimentation with various compilation strategies, optimizations, and intermediate representations.
-
----
-
-## 🔧 Using the Compiler
-
-The compiler takes a `.py` file as input and generates an equivalent `.s` x86 assembly file. The default setup assumes you're using **Python 3.10** and that the main compiler entry point is at `src/pyyc/compile.py`.
-
-You can modify the `pyyc` wrapper script if your compiler location or Python version differs.
-
----
 
 ## 🛠 Build & Run Instructions
 
